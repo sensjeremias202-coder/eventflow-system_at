@@ -12,9 +12,10 @@ const PORT = process.env.PORT || 5000;
 connectDB();
 
 // Middleware
+// CORS mais permissivo para facilitar desenvolvimento local (file://, localhost, 127.0.0.1)
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:5500'], // URLs do seu frontend
-    credentials: true
+    origin: '*',
+    credentials: false
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
