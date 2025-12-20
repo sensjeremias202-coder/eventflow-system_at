@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eventflow - Eventos</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="../styles.css">
+    <script src="../api.js"></script>
+    <style>
+        .events-container {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .events-header {
+            margin-bottom: 40px;
+        }
+
+        .events-header h1 {
+            font-size: 32px;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .events-header p {
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+
+        .events-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .events-filters {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-group label {
+            font-size: 14px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .filter-select {
+            padding: 10px 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            min-width: 150px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(46, 80, 81, 0.1);
+        }
+
+        .search-box {
+            position: relative;
+            min-width: 300px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 45px 12px 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: var(--transition);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(46, 80, 81, 0.1);
+        }
+
+        .search-button {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .create-event-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+        }
+
+        .create-event-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(46, 80, 81, 0.3);
+        }
+
+        .events-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+
+        .event-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .event-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .event-card-header {
+            padding: 25px;
+            color: white;
+            position: relative;
+            min-height: 120px;
+        }
+
+        .event-card-header.tech {
+            background: linear-gradient(135deg, #1976d2, #64b5f6);
+        }
+
+        .event-card-header.marketing {
+            background: linear-gradient(135deg, #f57c00, #ffb74d);
+        }
+
+        .event-card-header.development {
+            background: linear-gradient(135deg, #388e3c, #81c784);
+        }
+
+        .event-card-header.recruitment {
+            background: linear-gradient(135deg, #7b1fa2, #ba68c8);
+        }
+
+        .event-card-date {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 5px;
+        }
+
+        .event-card-month {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.9;
+        }
+
+        .event-card-category {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .event-card-status {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .event-card-body {
+            padding: 25px;
+        }
+
+        .event-card-title {
+            font-size: 20px;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .event-card-description {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .event-card-details {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .event-card-detail {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .event-card-detail i {
+            width: 20px;
+            color: var(--primary-light);
+        }
+
+        .event-card-progress {
+            margin-top: 20px;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            border-radius: 4px;
+        }
+
+        .event-card-footer {
+            padding: 20px 25px;
+            border-top: 2px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+        }
+
+        .event-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--border-color);
+            background: white;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .action-btn:hover {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            transform: scale(1.1);
+        }
+
+        .register-btn {
+            padding: 10px 20px;
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .register-btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .no-events {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .no-events i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            color: var(--border-color);
+        }
+
+        .no-events h3 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: var(--text-muted);
+        }
+
+        .no-events p {
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+
+        .events-pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 40px;
+        }
+
+        .page-btn {
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--border-color);
+            background: white;
+            color: var(--text-color);
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            font-weight: 600;
+        }
+
+        .page-btn:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .page-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .page-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-btn.disabled:hover {
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+
+        @media (max-width: 1200px) {
+            .events-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .events-container {
+                padding: 20px;
+            }
+
+            .events-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .events-filters {
+                flex-direction: column;
+            }
+
+            .filter-select {
+                min-width: 100%;
+            }
+
+            .search-box {
+                min-width: 100%;
+            }
+
+            .events-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .create-event-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <script>
+    if (!localStorage.getItem('token')) {
+        window.location.href = '../login-firebase.html';
+    }
+    </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const res = await api.get('/auth/profile', { auth: true });
+            if (res.ok) {
+                const data = await res.json();
+                const profile = data.user || {};
+                const name = profile.name || profile.email || 'Usuário';
+                const role = profile.role || 'Usuário';
+                document.querySelectorAll('.user-name').forEach(el => el.textContent = name);
+                document.querySelectorAll('.user-role').forEach(el => el.textContent = role);
+            }
+        } catch (e) {}
+
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                if (confirm('Tem certeza que deseja sair?')) {
+                    api.token.clear();
+                    window.location.href = '../login-firebase.html';
+                }
+            });
+        }
+    });
+    </script>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span class="logo-text">Eventflow</span>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            
+            <div class="sidebar-content">
+                <ul class="sidebar-menu">
+                    <li><a href="dashboard.html" class="sidebar-link">
+                        <i class="fas fa-home"></i> <span>Dashboard</span>
+                    </a></li>
+                    <li><a href="events.html" class="sidebar-link active">
+                        <i class="fas fa-calendar-alt"></i> <span>Eventos</span>
+                    </a></li>
+                    <li><a href="calendar.html" class="sidebar-link">
+                        <i class="fas fa-calendar"></i> <span>Calendário</span>
+                    </a></li>
+                    <li><a href="chat.html" class="sidebar-link">
+                        <i class="fas fa-comments"></i> <span>Chat</span>
+                    </a></li>
+                    <li><a href="profile.html" class="sidebar-link">
+                        <i class="fas fa-user"></i> <span>Perfil</span>
+                    </a></li>
+                </ul>
+                
+                <div class="sidebar-footer">
+                    <div class="user-info">
+                        <div class="user-avatar">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                        <div class="user-details">
+                            <span class="user-name">João Silva</span>
+                            <span class="user-role">Administrador</span>
+                        </div>
+                    </div>
+                    <button class="logout-btn" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt"></i> <span>Sair</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Conteúdo Principal -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="main-header">
+                <div class="header-left">
+                    <h1 class="page-title">Eventos</h1>
+                    <div class="breadcrumb">
+                        <span>Início</span> / <span>Eventos</span>
+                    </div>
+                </div>
+                
+                <div class="header-right">
+                    <div class="header-search">
+                        <input type="text" placeholder="Pesquisar eventos..." aria-label="Campo de pesquisa">
+                        <button class="search-btn" aria-label="Pesquisar">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="header-notifications">
+                        <button class="notification-btn" aria-label="Notificações">
+                            <i class="fas fa-bell"></i>
+                            <span class="notification-badge">3</span>
+                        </button>
+                    </div>
+                    
+                    <div class="header-user">
+                        <div class="user-avatar-small">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Área de Conteúdo -->
+            <div class="events-container">
+                <!-- Cabeçalho -->
+                <div class="events-header">
+                    <h1>Gerenciamento de Eventos</h1>
+                    <p>Crie, gerencie e acompanhe todos os seus eventos em um só lugar</p>
+                </div>
+
+                <!-- Barra de Ferramentas -->
+                <div class="events-toolbar">
+                    <div class="events-filters">
+                        <div class="filter-group">
+                            <label for="filterStatus">Status</label>
+                            <select id="filterStatus" class="filter-select">
+                                <option value="all">Todos os status</option>
+                                <option value="upcoming">Em breve</option>
+                                <option value="ongoing">Em andamento</option>
+                                <option value="completed">Concluído</option>
+                                <option value="cancelled">Cancelado</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label for="filterCategory">Categoria</label>
+                            <select id="filterCategory" class="filter-select">
+                                <option value="all">Todas as categorias</option>
+                                <option value="tech">Tecnologia</option>
+                                <option value="marketing">Marketing</option>
+                                <option value="development">Desenvolvimento</option>
+                                <option value="recruitment">Recrutamento</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group search-box">
+                            <label for="searchEvents">Buscar</label>
+                            <input type="text" id="searchEvents" class="search-input" placeholder="Buscar eventos...">
+                            <button class="search-button">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <button class="create-event-btn" id="createEventBtn">
+                        <i class="fas fa-plus"></i>
+                        <span>Criar Evento</span>
+                    </button>
+                </div>
+
+                <!-- Grid de Eventos -->
+                <div class="events-grid" id="eventsGrid">
+                    <!-- Eventos serão carregados via JavaScript -->
+                </div>
+
+                <!-- Paginação -->
+                <div class="events-pagination">
+                    <button class="page-btn disabled">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="page-btn active">1</button>
+                    <button class="page-btn">2</button>
+                    <button class="page-btn">3</button>
+                    <button class="page-btn">4</button>
+                    <button class="page-btn">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de Criar Evento -->
+    <div class="modal" id="createEventModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Criar Novo Evento</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="eventForm">
+                    <div class="form-group">
+                        <label for="eventTitle">Título do Evento *</label>
+                        <input type="text" id="eventTitle" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="eventDate">Data *</label>
+                            <input type="date" id="eventDate" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="eventTime">Hora *</label>
+                            <input type="time" id="eventTime" class="form-control" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="eventLocation">Local *</label>
+                        <input type="text" id="eventLocation" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="eventCategory">Categoria *</label>
+                        <select id="eventCategory" class="form-control" required>
+                            <option value="">Selecione uma categoria</option>
+                            <option value="tech">Tecnologia</option>
+                            <option value="marketing">Marketing</option>
+                            <option value="development">Desenvolvimento</option>
+                            <option value="recruitment">Recrutamento</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="eventCapacity">Capacidade *</label>
+                        <input type="number" id="eventCapacity" class="form-control" min="1" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="eventDescription">Descrição</label>
+                        <textarea id="eventDescription" class="form-control" rows="4"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modalCancel">Cancelar</button>
+                <button class="btn btn-primary" id="modalSave">Criar Evento</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../script.js"></script>
+    <script>
+        // Sincroniza EventflowData.events com o backend
+        async function syncEventsFromBackend() {
+            try {
+                const res = await api.get('/events', { auth: true });
+                const json = await res.json();
+                const items = json.items || [];
+                EventflowData.events = items.map(e => ({
+                    id: e.id,
+                    title: e.title,
+                    description: e.description || '',
+                    date: e.date,
+                    time: e.time,
+                    endDate: e.endDate || e.date,
+                    endTime: e.endTime || e.time,
+                    location: e.location || '',
+                    address: e.address || '',
+                    category: e.category || 'Tecnologia',
+                    status: e.status || 'upcoming',
+                    capacity: e.capacity || 50,
+                    registered: e.registered || 0,
+                    organizer: e.organizer || 'Organizador',
+                    color: e.color || '#1976d2',
+                    attendees: e.attendees || []
+                }));
+            } catch (err) {
+                console.warn('Falha ao sincronizar eventos. Usando dados locais.', err);
+            }
+        }
+        // Carregar eventos
+        function loadEvents() {
+            const eventsGrid = document.getElementById('eventsGrid');
+            const eventsData = EventflowData.events || [];
+            
+            if (!eventsGrid) return;
+
+            if (eventsData.length === 0) {
+                eventsGrid.innerHTML = `
+                    <div class="no-events">
+                        <i class="fas fa-calendar-times"></i>
+                        <h3>Nenhum evento encontrado</h3>
+                        <p>Comece criando seu primeiro evento!</p>
+                        <button class="create-event-btn" id="createFirstEventBtn">
+                            <i class="fas fa-plus"></i>
+                            <span>Criar Primeiro Evento</span>
+                        </button>
+                    </div>
+                `;
+                
+                document.getElementById('createFirstEventBtn')?.addEventListener('click', () => {
+                    document.getElementById('createEventModal').style.display = 'flex';
+                });
+                
+                return;
+            }
+
+            eventsGrid.innerHTML = eventsData.map(event => {
+                const date = new Date(event.date);
+                const day = date.getDate();
+                const month = date.toLocaleDateString('pt-BR', { month: 'short' });
+                const category = event.category;
+                const categoryClass = getCategoryClass(category);
+                const statusText = getStatusText(event.status);
+                
+                return `
+                    <div class="event-card" data-event-id="${event.id}">
+                        <div class="event-card-header ${categoryClass}">
+                            <div class="event-card-date">${day}</div>
+                            <div class="event-card-month">${month}</div>
+                            <div class="event-card-category">${category}</div>
+                            <div class="event-card-status">${statusText}</div>
+                        </div>
+                        
+                        <div class="event-card-body">
+                            <h3 class="event-card-title">${event.title}</h3>
+                            <p class="event-card-description">${event.description}</p>
+                            
+                            <div class="event-card-details">
+                                <div class="event-card-detail">
+                                    <i class="fas fa-clock"></i>
+                                    <span>${event.time}</span>
+                                </div>
+                                <div class="event-card-detail">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <span>${event.location}</span>
+                                </div>
+                                <div class="event-card-detail">
+                                    <i class="fas fa-user"></i>
+                                    <span>Organizador: ${event.organizer}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="event-card-progress">
+                                <div class="progress-label">
+                                    <span>Participação</span>
+                                    <span>${event.registered}/${event.capacity}</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${(event.registered / event.capacity) * 100}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="event-card-footer">
+                            <div class="event-actions">
+                                <button class="action-btn" title="Visualizar" data-action="view">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="action-btn" title="Editar" data-action="edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="action-btn" title="Excluir" data-action="delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                            <button class="register-btn" data-action="register">
+                                Inscrever-se
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Adicionar eventos aos botões
+            eventsGrid.querySelectorAll('.event-card').forEach(card => {
+                const eventId = card.dataset.eventId;
+                const actions = card.querySelectorAll('[data-action]');
+                
+                actions.forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const action = button.dataset.action;
+                        handleEventAction(eventId, action);
+                    });
+                });
+                
+                // Clicar no card (exceto nos botões) mostra detalhes
+                card.addEventListener('click', (e) => {
+                    if (!e.target.closest('[data-action]')) {
+                        showEventDetails(eventId);
+                    }
+                });
+            });
+        }
+
+        // Filtrar eventos
+        function filterEvents() {
+            const statusFilter = document.getElementById('filterStatus')?.value || 'all';
+            const categoryFilter = document.getElementById('filterCategory')?.value || 'all';
+            const searchFilter = document.getElementById('searchEvents')?.value?.toLowerCase() || '';
+
+            const filtered = EventflowData.events.filter(event => {
+                // Filtro de status
+                if (statusFilter !== 'all' && event.status !== statusFilter) {
+                    return false;
+                }
+
+                // Filtro de categoria
+                if (categoryFilter !== 'all' && event.category !== categoryFilter) {
+                    return false;
+                }
+
+                // Filtro de busca
+                if (searchFilter && !event.title.toLowerCase().includes(searchFilter) && 
+                    !event.description.toLowerCase().includes(searchFilter) &&
+                    !event.location.toLowerCase().includes(searchFilter)) {
+                    return false;
+                }
+
+                return true;
+            });
+
+            // Atualizar grid com eventos filtrados
+            updateEventsGrid(filtered);
+        }
+
+        // Atualizar grid de eventos
+        function updateEventsGrid(events) {
+            const eventsGrid = document.getElementById('eventsGrid');
+            if (!eventsGrid) return;
+
+            if (events.length === 0) {
+                eventsGrid.innerHTML = `
+                    <div class="no-events">
+                        <i class="fas fa-search"></i>
+                        <h3>Nenhum evento encontrado</h3>
+                        <p>Não encontramos eventos correspondentes aos seus filtros.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Reutilizar a lógica de renderização do loadEvents()
+            eventsGrid.innerHTML = events.map(event => {
+                const date = new Date(event.date);
+                const day = date.getDate();
+                const month = date.toLocaleDateString('pt-BR', { month: 'short' });
+                const category = event.category;
+                const categoryClass = getCategoryClass(category);
+                const statusText = getStatusText(event.status);
+                
+                return `
+                    <div class="event-card" data-event-id="${event.id}">
+                        <div class="event-card-header ${categoryClass}">
+                            <div class="event-card-date">${day}</div>
+                            <div class="event-card-month">${month}</div>
+                            <div class="event-card-category">${category}</div>
+                            <div class="event-card-status">${statusText}</div>
+                        </div>
+                        
+                        <div class="event-card-body">
+                            <h3 class="event-card-title">${event.title}</h3>
+                            <p class="event-card-description">${event.description}</p>
+                            
+                            <div class="event-card-details">
+                                <div class="event-card-detail">
+                                    <i class="fas fa-clock"></i>
+                                    <span>${event.time}</span>
+                                </div>
+                                <div class="event-card-detail">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <span>${event.location}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="event-card-footer">
+                            <div class="event-actions">
+                                <button class="action-btn" title="Visualizar" data-action="view">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="action-btn" title="Editar" data-action="edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </div>
+                            <button class="register-btn" data-action="register">
+                                Inscrever-se
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Reatachar eventos
+            eventsGrid.querySelectorAll('.event-card').forEach(card => {
+                const eventId = card.dataset.eventId;
+                const actions = card.querySelectorAll('[data-action]');
+                
+                actions.forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const action = button.dataset.action;
+                        handleEventAction(eventId, action);
+                    });
+                });
+                
+                card.addEventListener('click', (e) => {
+                    if (!e.target.closest('[data-action]')) {
+                        showEventDetails(eventId);
+                    }
+                });
+            });
+        }
+
+        // Manipular ações do evento
+        function handleEventAction(eventId, action) {
+            const event = EventflowData.events.find(e => e.id == eventId);
+            if (!event) return;
+
+            switch(action) {
+                case 'view':
+                    showEventDetails(eventId);
+                    break;
+                    
+                case 'edit':
+                    editEvent(eventId);
+                    break;
+                    
+                case 'delete':
+                    if (confirm(`Tem certeza que deseja excluir o evento "${event.title}"?`)) {
+                        api.del(`/events/${eventId}`, { auth: true })
+                          .then(async res => {
+                              if (!res.ok) throw new Error('Falha ao excluir');
+                              await syncEventsFromBackend();
+                              loadEvents();
+                              window.app?.showToast('Evento excluído com sucesso!', 'success');
+                          })
+                          .catch(() => window.app?.showToast('Erro ao excluir evento', 'error'));
+                    }
+                    break;
+                    
+                case 'register':
+                    registerForEvent(eventId);
+                    break;
+            }
+        }
+
+        // Mostrar detalhes do evento
+        function showEventDetails(eventId) {
+            const event = EventflowData.events.find(e => e.id == eventId);
+            if (!event) return;
+
+            // Redirecionar para página de detalhes ou mostrar modal
+            alert(`Detalhes do evento: ${event.title}\n\nDescrição: ${event.description}\nData: ${event.date}\nLocal: ${event.location}`);
+        }
+
+        // Editar evento
+        function editEvent(eventId) {
+            const event = EventflowData.events.find(e => e.id == eventId);
+            if (!event) return;
+
+            // Preencher modal com dados do evento
+            document.getElementById('eventTitle').value = event.title;
+            document.getElementById('eventDate').value = event.date;
+            document.getElementById('eventTime').value = event.time;
+            document.getElementById('eventLocation').value = event.location;
+            document.getElementById('eventCategory').value = event.category;
+            document.getElementById('eventCapacity').value = event.capacity;
+            document.getElementById('eventDescription').value = event.description;
+
+            // Atualizar modal para edição
+            document.querySelector('.modal-header h3').textContent = 'Editar Evento';
+            document.getElementById('modalSave').textContent = 'Salvar Alterações';
+
+            // Mostrar modal
+            document.getElementById('createEventModal').style.display = 'flex';
+
+            // Configurar salvamento
+            const saveBtn = document.getElementById('modalSave');
+            saveBtn.onclick = () => saveEvent(eventId);
+        }
+
+        // Registrar para evento
+        function registerForEvent(eventId) {
+            const event = EventflowData.events.find(e => e.id == eventId);
+            if (!event) return;
+            if (event.registered >= event.capacity) {
+                alert('Este evento está lotado!');
+                return;
+            }
+            api.post(`/events/${eventId}/register`, {}, { auth: true })
+              .then(async res => {
+                const body = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(body.error || 'Falha ao inscrever');
+                await syncEventsFromBackend();
+                window.app?.showToast(`Inscrição confirmada para ${event.title}!`, 'success');
+                loadEvents();
+              })
+              .catch(err => window.app?.showToast(err.message || 'Erro na inscrição', 'error'))
+        }
+
+        // Funções auxiliares
+        function getCategoryClass(category) {
+            const classMap = {
+                'Tecnologia': 'tech',
+                'Marketing': 'marketing',
+                'Desenvolvimento': 'development',
+                'Recrutamento': 'recruitment'
+            };
+            return classMap[category] || 'tech';
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'upcoming': 'Em breve',
+                'ongoing': 'Em andamento',
+                'completed': 'Concluído',
+                'cancelled': 'Cancelado'
+            };
+            return statusMap[status] || status;
+        }
+
+        // Salvar evento (criação ou edição)
+        function saveEvent(eventId = null) {
+            const form = document.getElementById('eventForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const eventData = {
+                title: document.getElementById('eventTitle').value,
+                date: document.getElementById('eventDate').value,
+                time: document.getElementById('eventTime').value,
+                location: document.getElementById('eventLocation').value,
+                category: document.getElementById('eventCategory').value,
+                capacity: parseInt(document.getElementById('eventCapacity').value),
+                description: document.getElementById('eventDescription').value,
+                status: 'upcoming',
+                organizer: 'Organizador',
+                color: '#1976d2'
+            };
+
+            if (eventId) {
+                api.put(`/events/${eventId}`, eventData, { auth: true })
+                  .then(async res => {
+                    const body = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(body.error || 'Falha ao atualizar evento');
+                    await syncEventsFromBackend();
+                    window.app?.showToast('Evento atualizado com sucesso!', 'success');
+                    loadEvents();
+                  })
+                  .catch(err => window.app?.showToast(err.message, 'error'));
+            } else {
+                api.post('/events', eventData, { auth: true })
+                  .then(async res => {
+                    const body = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(body.error || 'Falha ao criar evento');
+                    await syncEventsFromBackend();
+                    window.app?.showToast('Evento criado com sucesso!', 'success');
+                    loadEvents();
+                  })
+                  .catch(err => window.app?.showToast(err.message, 'error'));
+            }
+
+            // Fechar modal
+            document.getElementById('createEventModal').style.display = 'none';
+            form.reset();
+
+            // Recarregar eventos
+            loadEvents();
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            (async () => { await syncEventsFromBackend(); loadEvents(); })();
+
+            // Configurar filtros
+            document.getElementById('filterStatus')?.addEventListener('change', filterEvents);
+            document.getElementById('filterCategory')?.addEventListener('change', filterEvents);
+            document.getElementById('searchEvents')?.addEventListener('input', filterEvents);
+            document.querySelector('.search-button')?.addEventListener('click', filterEvents);
+
+            // Botão criar evento
+            document.getElementById('createEventBtn')?.addEventListener('click', () => {
+                // Limpar formulário
+                document.getElementById('eventForm').reset();
+                
+                // Configurar modal para criação
+                document.querySelector('.modal-header h3').textContent = 'Criar Novo Evento';
+                document.getElementById('modalSave').textContent = 'Criar Evento';
+                
+                // Configurar salvamento
+                const saveBtn = document.getElementById('modalSave');
+                saveBtn.onclick = () => saveEvent();
+                
+                // Mostrar modal
+                document.getElementById('createEventModal').style.display = 'flex';
+            });
+
+            // Fechar modal
+            document.getElementById('modalClose')?.addEventListener('click', () => {
+                document.getElementById('createEventModal').style.display = 'none';
+                document.getElementById('eventForm').reset();
+            });
+
+            document.getElementById('modalCancel')?.addEventListener('click', () => {
+                document.getElementById('createEventModal').style.display = 'none';
+                document.getElementById('eventForm').reset();
+            });
+
+            // Fechar modal ao clicar fora
+            window.addEventListener('click', (e) => {
+                const modal = document.getElementById('createEventModal');
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                    document.getElementById('eventForm').reset();
+                }
+            });
+
+            // Sidebar toggle
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('sidebar');
+
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', () => {
+                    sidebar.classList.toggle('collapsed');
+                });
+            }
+
+            // Logout
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', () => {
+                    if (confirm('Tem certeza que deseja sair?')) {
+                        api.token.clear();
+                        window.location.href = '../login-firebase.html';
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

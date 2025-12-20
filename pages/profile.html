@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eventflow - Perfil</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="../styles.css">
+    <script src="../api.js"></script>
+    <style>
+        /* Estilos específicos do perfil */
+        .profile-container {
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            margin-bottom: 40px;
+            padding-bottom: 40px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        @media (max-width: 768px) {
+            .profile-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 30px;
+            }
+        }
+
+        .profile-avatar {
+            position: relative;
+        }
+
+        .avatar-image {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            color: white;
+            border: 5px solid white;
+            box-shadow: var(--shadow);
+        }
+
+        .avatar-upload {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: var(--shadow);
+        }
+
+        .avatar-upload:hover {
+            transform: scale(1.1);
+            background: #45a049;
+        }
+
+        .profile-info {
+            flex: 1;
+        }
+
+        .profile-name {
+            font-size: 36px;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-weight: 800;
+        }
+
+        .profile-role {
+            font-size: 18px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .profile-bio {
+            font-size: 16px;
+            color: var(--text-color);
+            line-height: 1.6;
+            max-width: 600px;
+        }
+
+        .profile-stats {
+            display: flex;
+            gap: 40px;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 576px) {
+            .profile-stats {
+                flex-direction: column;
+                gap: 20px;
+            }
+        }
+
+        .profile-stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            display: block;
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--primary-color);
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 8px;
+        }
+
+        .profile-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 40px;
+            border-bottom: 2px solid var(--border-color);
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 15px 30px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary-color);
+        }
+
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .profile-form {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: var(--shadow);
+        }
+
+        .form-section {
+            margin-bottom: 40px;
+        }
+
+        .form-section h3 {
+            font-size: 20px;
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-section h3 i {
+            color: var(--primary-color);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 25px;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .form-control {
+            padding: 12px 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            transition: var(--transition);
+            background: white;
+            font-family: inherit;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(46, 80, 81, 0.1);
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 2px solid var(--border-color);
+        }
+
+        /* Security Section */
+        .security-items {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .security-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            transition: var(--transition);
+        }
+
+        .security-item:hover {
+            border-color: var(--primary-color);
+            background: #f8f9fa;
+        }
+
+        .security-info {
+            flex: 1;
+        }
+
+        .security-info h4 {
+            font-size: 16px;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .security-info p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        /* Preferences Section */
+        .preferences-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 25px;
+        }
+
+        @media (max-width: 768px) {
+            .preferences-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .preference-item {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 20px;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+        }
+
+        .preference-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .preference-header i {
+            font-size: 24px;
+            color: var(--primary-color);
+        }
+
+        .preference-header h4 {
+            font-size: 16px;
+            color: var(--primary-color);
+            margin: 0;
+        }
+
+        .preference-description {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+            margin-top: 10px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 30px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--primary-color);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(30px);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 500px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            padding: 25px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            border-radius: 16px 16px 0 0;
+            position: relative;
+        }
+
+        .modal-header h3 {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            padding: 0;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            padding: 30px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: 20px;
+            border-top: 2px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+            background: #f8f9fa;
+        }
+
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            min-width: 300px;
+            z-index: 1001;
+            animation: toastSlideIn 0.3s ease;
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        @keyframes toastSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--secondary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-content h4 {
+            font-size: 16px;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .toast-content p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 18px;
+            transition: var(--transition);
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .toast-close:hover {
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <script>
+    if (!localStorage.getItem('token')) {
+        window.location.href = '../login-firebase.html';
+    }
+    </script>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span class="logo-text">Eventflow</span>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            
+            <div class="sidebar-content">
+                <ul class="sidebar-menu">
+                    <li><a href="dashboard.html" class="sidebar-link">
+                        <i class="fas fa-home"></i> <span>Dashboard</span>
+                    </a></li>
+                    <li><a href="events.html" class="sidebar-link">
+                        <i class="fas fa-calendar-alt"></i> <span>Eventos</span>
+                    </a></li>
+                    <li><a href="calendar.html" class="sidebar-link">
+                        <i class="fas fa-calendar"></i> <span>Calendário</span>
+                    </a></li>
+                    <li><a href="chat.html" class="sidebar-link">
+                        <i class="fas fa-comments"></i> <span>Chat</span>
+                    </a></li>
+                    <li><a href="profile.html" class="sidebar-link active">
+                        <i class="fas fa-user"></i> <span>Perfil</span>
+                    </a></li>
+                </ul>
+                
+                <div class="sidebar-footer">
+                    <div class="user-info">
+                        <div class="user-avatar">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                        <div class="user-details">
+                            <span class="user-name">João Silva</span>
+                            <span class="user-role">Administrador</span>
+                        </div>
+                    </div>
+                    <button class="logout-btn" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt"></i> <span>Sair</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Conteúdo Principal -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="main-header">
+                <div class="header-left">
+                    <h1 class="page-title">Meu Perfil</h1>
+                    <div class="breadcrumb">
+                        <span>Início</span> / <span>Perfil</span>
+                    </div>
+                </div>
+                
+                <div class="header-right">
+                    <div class="header-search">
+                        <input type="text" placeholder="Pesquisar..." aria-label="Campo de pesquisa">
+                        <button class="search-btn" aria-label="Pesquisar">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="header-notifications">
+                        <button class="notification-btn" aria-label="Notificações">
+                            <i class="fas fa-bell"></i>
+                            <span class="notification-badge">3</span>
+                        </button>
+                    </div>
+                    
+                    <div class="header-user">
+                        <div class="user-avatar-small">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Área de Conteúdo -->
+            <div class="profile-container">
+                <!-- Cabeçalho do Perfil -->
+                <div class="profile-header">
+                    <div class="profile-avatar">
+                        <div class="avatar-image">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <button class="avatar-upload" id="uploadAvatarBtn">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="profile-info">
+                        <h1 class="profile-name" id="userName">João Silva</h1>
+                        <div class="profile-role">
+                            <i class="fas fa-briefcase"></i>
+                            <span id="userRole">Administrador do Sistema</span>
+                        </div>
+                        <p class="profile-bio" id="userBio">Especialista em gestão de eventos corporativos com mais de 10 anos de experiência. Apaixonado por tecnologia e inovação.</p>
+                        
+                        <div class="profile-stats">
+                            <div class="profile-stat">
+                                <span class="stat-value" id="eventsCount">24</span>
+                                <span class="stat-label">Eventos</span>
+                            </div>
+                            <div class="profile-stat">
+                                <span class="stat-value" id="participantsCount">1,248</span>
+                                <span class="stat-label">Participantes</span>
+                            </div>
+                            <div class="profile-stat">
+                                <span class="stat-value" id="successRate">95%</span>
+                                <span class="stat-label">Avaliação</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Abas -->
+                <div class="profile-tabs">
+                    <button class="tab-btn active" data-tab="info">
+                        <i class="fas fa-user"></i>
+                        Informações
+                    </button>
+                    <button class="tab-btn" data-tab="security">
+                        <i class="fas fa-shield-alt"></i>
+                        Segurança
+                    </button>
+                    <button class="tab-btn" data-tab="preferences">
+                        <i class="fas fa-cog"></i>
+                        Preferências
+                    </button>
+                </div>
+
+                <!-- Conteúdo das Abas -->
+                <div class="tab-content active" id="tabInfo">
+                    <form class="profile-form" id="infoForm">
+                        <div class="form-section">
+                            <h3><i class="fas fa-user-circle"></i> Informações Pessoais</h3>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="fullName">Nome Completo *</label>
+                                    <input type="text" id="fullName" class="form-control" value="João Silva" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="email">Email *</label>
+                                    <input type="email" id="email" class="form-control" value="joao.silva@eventflow.com" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="phone">Telefone</label>
+                                    <input type="tel" id="phone" class="form-control" value="(11) 99999-9999">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="position">Cargo *</label>
+                                    <input type="text" id="position" class="form-control" value="Administrador" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="department">Departamento</label>
+                                    <input type="text" id="department" class="form-control" value="TI">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="location">Localização</label>
+                                    <input type="text" id="location" class="form-control" value="São Paulo, SP">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-section">
+                            <h3><i class="fas fa-file-alt"></i> Sobre</h3>
+                            <div class="form-group">
+                                <label for="bio">Biografia</label>
+                                <textarea id="bio" class="form-control" rows="4">Especialista em gestão de eventos corporativos com mais de 10 anos de experiência. Apaixonado por tecnologia e inovação. Formado em Administração de Empresas com MBA em Gestão de Projetos.</textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="cancelInfoBtn">
+                                Cancelar
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i>
+                                Salvar Alterações
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="tab-content" id="tabSecurity">
+                    <div class="profile-form">
+                        <div class="form-section">
+                            <h3><i class="fas fa-key"></i> Segurança da Conta</h3>
+                            <div class="security-items">
+                                <div class="security-item">
+                                    <div class="security-info">
+                                        <h4>Alterar Senha</h4>
+                                        <p>Atualize sua senha regularmente para manter sua conta segura</p>
+                                    </div>
+                                    <button class="btn btn-outline" id="changePasswordBtn">
+                                        Alterar
+                                    </button>
+                                </div>
+                                
+                                <div class="security-item">
+                                    <div class="security-info">
+                                        <h4>Autenticação de Dois Fatores</h4>
+                                        <p>Adicione uma camada extra de segurança à sua conta</p>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="twoFactorToggle">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="tabPreferences">
+                    <div class="profile-form">
+                        <div class="form-section">
+                            <h3><i class="fas fa-bell"></i> Notificações</h3>
+                            <div class="preferences-grid">
+                                <div class="preference-item">
+                                    <div class="preference-header">
+                                        <i class="fas fa-envelope"></i>
+                                        <h4>Email</h4>
+                                    </div>
+                                    <p class="preference-description">Receba notificações por email sobre eventos e atividades</p>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="emailNotifications" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                
+                                <div class="preference-item">
+                                    <div class="preference-header">
+                                        <i class="fas fa-mobile-alt"></i>
+                                        <h4>Push</h4>
+                                    </div>
+                                    <p class="preference-description">Receba notificações push no seu dispositivo</p>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="pushNotifications" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                
+                                <div class="preference-item">
+                                    <div class="preference-header">
+                                        <i class="fas fa-calendar-alt"></i>
+                                        <h4>Lembretes de Eventos</h4>
+                                    </div>
+                                    <p class="preference-description">Lembretes automáticos antes dos eventos</p>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="eventReminders" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                
+                                <div class="preference-item">
+                                    <div class="preference-header">
+                                        <i class="fas fa-comments"></i>
+                                        <h4>Mensagens</h4>
+                                    </div>
+                                    <p class="preference-description">Notificações sobre novas mensagens no chat</p>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="messageNotifications" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de Alterar Senha -->
+    <div class="modal" id="passwordModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Alterar Senha</h3>
+                <button class="modal-close" id="passwordModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="passwordForm">
+                    <div class="form-group">
+                        <label for="currentPassword">Senha Atual *</label>
+                        <input type="password" id="currentPassword" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newPassword">Nova Senha *</label>
+                        <input type="password" id="newPassword" class="form-control" required minlength="8">
+                        <small style="font-size: 12px; color: var(--text-muted);">Mínimo de 8 caracteres</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirmar Nova Senha *</label>
+                        <input type="password" id="confirmPassword" class="form-control" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="passwordCancelBtn">Cancelar</button>
+                <button class="btn btn-primary" id="passwordSaveBtn">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../script.js"></script>
+    <script>
+// Profile Script com backend JWT
+let currentProfile = null;
+
+document.addEventListener('DOMContentLoaded', async function() {
+    // Garante autenticação
+    if (!localStorage.getItem('token')) {
+        window.location.href = '../login-firebase.html';
+        return;
+    }
+    await loadUserData();
+    setupProfileFunctionality();
+    updateSidebar();
+});
+
+async function loadUserData() {
+    try {
+        const res = await api.get('/auth/profile', { auth: true });
+        if (!res.ok) throw new Error('Falha ao obter perfil');
+        const data = await res.json();
+        const profile = data.user || {};
+        currentProfile = profile;
+
+        document.getElementById('userName').textContent = profile.name || profile.email || 'Usuário';
+        document.getElementById('userRole').textContent = profile.role || 'Usuário';
+        document.getElementById('userBio').textContent = profile.bio || 'Usuário do Eventflow';
+        document.getElementById('eventsCount').textContent = profile.eventsCount ?? '0';
+        document.getElementById('participantsCount').textContent = profile.participantsCount ?? '0';
+        document.getElementById('successRate').textContent = profile.successRate != null ? `${profile.successRate}%` : '0%';
+
+        document.getElementById('fullName').value = profile.name || '';
+        document.getElementById('email').value = profile.email || '';
+        document.getElementById('phone').value = profile.phone || '';
+        document.getElementById('position').value = profile.position || '';
+        document.getElementById('department').value = profile.department || '';
+        document.getElementById('location').value = profile.location || '';
+        document.getElementById('bio').value = profile.bio || '';
+
+        document.getElementById('emailNotifications').checked = profile.emailNotifications !== false;
+        document.getElementById('pushNotifications').checked = profile.pushNotifications !== false;
+        document.getElementById('eventReminders').checked = profile.eventReminders !== false;
+        document.getElementById('messageNotifications').checked = profile.messageNotifications !== false;
+        document.getElementById('twoFactorToggle').checked = profile.twoFactorEnabled === true;
+    } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        showToast('Erro', 'Não foi possível carregar os dados do perfil', 'error');
+    }
+}
+
+function setupProfileFunctionality() {
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+    if (sidebarToggle && sidebar) {
+        sidebarToggle.addEventListener('click', () => sidebar.classList.toggle('collapsed'));
+    }
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        if (confirm('Tem certeza que deseja sair?')) {
+            api.token.clear();
+            window.location.href = '../login-firebase.html';
+        }
+    });
+
+    // Submit de informações do perfil
+    const infoForm = document.getElementById('infoForm');
+    infoForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const profileData = {
+            name: document.getElementById('fullName').value.trim(),
+            phone: document.getElementById('phone').value.trim(),
+            position: document.getElementById('position').value.trim(),
+            department: document.getElementById('department').value.trim(),
+            location: document.getElementById('location').value.trim(),
+            bio: document.getElementById('bio').value.trim()
+        };
+        try {
+            const res = await api.put('/auth/profile', profileData, { auth: true });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+                // Atualiza UI
+                document.getElementById('userName').textContent = profileData.name || currentProfile?.email || 'Usuário';
+                document.getElementById('userRole').textContent = profileData.position || currentProfile?.role || 'Usuário';
+                document.getElementById('userBio').textContent = profileData.bio || '';
+                currentProfile = Object.assign({}, currentProfile, profileData);
+                updateSidebar();
+                showToast('Sucesso!', 'Perfil atualizado com sucesso', 'success');
+            } else {
+                showToast('Erro', data.error || 'Erro ao atualizar perfil', 'error');
+            }
+        } catch (error) {
+            showToast('Erro', 'Erro ao atualizar perfil', 'error');
+        }
+    });
+
+    // Botão cancelar
+    document.getElementById('cancelInfoBtn').addEventListener('click', () => {
+        loadUserData();
+        showToast('Cancelado', 'Alterações descartadas', 'info');
+    });
+
+    // Alterar senha
+    document.getElementById('changePasswordBtn').addEventListener('click', () => {
+        openPasswordModal();
+    });
+
+    // Preferências
+    setupPreferences();
+}
+
+function updateSidebar() {
+    const name = currentProfile?.name || currentProfile?.email || 'Usuário';
+    const role = currentProfile?.role || 'Usuário';
+    document.querySelectorAll('.user-name').forEach(el => el.textContent = name);
+    document.querySelectorAll('.user-role').forEach(el => el.textContent = role);
+}
+
+function setupPreferences() {
+    const preferences = {
+        'emailNotifications': 'emailNotifications',
+        'pushNotifications': 'pushNotifications',
+        'eventReminders': 'eventReminders',
+        'messageNotifications': 'messageNotifications',
+        'twoFactorToggle': 'twoFactorEnabled'
+    };
+    Object.keys(preferences).forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('change', async function() {
+                const data = { [preferences[id]]: this.checked };
+                try {
+                    const res = await api.put('/auth/profile', data, { auth: true });
+                    if (res.ok) {
+                        currentProfile = Object.assign({}, currentProfile, data);
+                        showToast('Preferências', 'Configuração atualizada', 'success');
+                    } else {
+                        this.checked = !this.checked;
+                        const body = await res.json().catch(() => ({}));
+                        showToast('Erro', body.error || 'Não foi possível atualizar', 'error');
+                    }
+                } catch (err) {
+                    this.checked = !this.checked;
+                    showToast('Erro', 'Não foi possível atualizar', 'error');
+                }
+            });
+        }
+    });
+}
+
+// Modal de alterar senha
+function openPasswordModal() {
+    const modal = document.getElementById('passwordModal');
+    const closeBtn = document.getElementById('passwordModalClose');
+    const cancelBtn = document.getElementById('passwordCancelBtn');
+    const saveBtn = document.getElementById('passwordSaveBtn');
+    const form = document.getElementById('passwordForm');
+
+    modal.classList.add('active');
+
+    function closeModal() {
+        modal.classList.remove('active');
+        form.reset();
+    }
+
+    closeBtn.onclick = closeModal;
+    cancelBtn.onclick = closeModal;
+    modal.onclick = function(e) { if (e.target === modal) closeModal(); };
+
+    saveBtn.onclick = async function() {
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            showToast('Erro', 'Preencha todos os campos', 'error');
+            return;
+        }
+        if (newPassword.length < 6) {
+            showToast('Erro', 'A senha deve ter no mínimo 6 caracteres', 'error');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            showToast('Erro', 'As senhas não coincidem', 'error');
+            return;
+        }
+        try {
+            const res = await api.put('/auth/change-password', { currentPassword, newPassword }, { auth: true });
+            if (res.ok) {
+                showToast('Sucesso', 'Senha alterada com sucesso', 'success');
+                closeModal();
+            } else {
+                const body = await res.json().catch(() => ({}));
+                showToast('Erro', body.error || 'Erro ao alterar senha', 'error');
+            }
+        } catch (error) {
+            showToast('Erro', 'Erro ao alterar senha', 'error');
+        }
+    };
+}
+
+// Função de toast notification
+function showToast(title, message, type = 'info') {
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) existingToast.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    
+    const colors = {
+        success: '#4CAF50',
+        error: '#F44336',
+        info: '#2196F3'
+    };
+    
+    toast.innerHTML = `
+        <div class="toast-icon" style="background: ${colors[type] || '#2196F3'}">
+            <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation' : 'info'}"></i>
+        </div>
+        <div class="toast-content">
+            <h4>${title}</h4>
+            <p>${message}</p>
+        </div>
+        <button class="toast-close">&times;</button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
+    
+    toast.querySelector('.toast-close').onclick = () => toast.remove();
+}
+    </script>
+</body>
+</html>

@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eventflow - Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="../styles.css">
+    <script src="../api.js"></script>
+    <style>
+        .dashboard-container {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .dashboard-header {
+            margin-bottom: 40px;
+        }
+
+        .dashboard-header h1 {
+            font-size: 32px;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .dashboard-header p {
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            border-left: 5px solid var(--primary-color);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .stat-card.upcoming {
+            border-left-color: #1976d2;
+        }
+
+        .stat-card.ongoing {
+            border-left-color: #f57c00;
+        }
+
+        .stat-card.completed {
+            border-left-color: #388e3c;
+        }
+
+        .stat-card.attendance {
+            border-left-color: #7b1fa2;
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+        }
+
+        .stat-icon.upcoming {
+            background: linear-gradient(135deg, #1976d2, #64b5f6);
+        }
+
+        .stat-icon.ongoing {
+            background: linear-gradient(135deg, #f57c00, #ffb74d);
+        }
+
+        .stat-icon.completed {
+            background: linear-gradient(135deg, #388e3c, #81c784);
+        }
+
+        .stat-icon.attendance {
+            background: linear-gradient(135deg, #7b1fa2, #ba68c8);
+        }
+
+        .stat-title {
+            font-size: 14px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            line-height: 1;
+        }
+
+        .stat-change {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .stat-change.positive {
+            color: var(--secondary-color);
+        }
+
+        .stat-change.negative {
+            color: var(--accent-color);
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .dashboard-card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: var(--shadow);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .card-header h2 {
+            font-size: 20px;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-header h2 i {
+            color: var(--primary-color);
+        }
+
+        .view-all-btn {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 2px solid var(--border-color);
+            transition: var(--transition);
+        }
+
+        .view-all-btn:hover {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .events-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .timeline-item {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .timeline-item:hover {
+            border-color: var(--primary-color);
+            background: #f8f9fa;
+        }
+
+        .timeline-date {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 80px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            border-radius: 12px;
+            padding: 15px;
+            color: white;
+        }
+
+        .timeline-day {
+            font-size: 28px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .timeline-month {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .timeline-content {
+            flex: 1;
+        }
+
+        .timeline-content h3 {
+            font-size: 18px;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .timeline-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .timeline-detail {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .timeline-detail i {
+            color: var(--primary-light);
+        }
+
+        .timeline-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-block;
+        }
+
+        .status-upcoming {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .status-ongoing {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .status-completed {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .calendar-widget-large {
+            background: white;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .calendar-nav {
+            background: none;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            color: var(--primary-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: var(--transition);
+        }
+
+        .calendar-nav:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .calendar-current-month {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .calendar-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+        }
+
+        .calendar-day {
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 600;
+            position: relative;
+        }
+
+        .calendar-day:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .calendar-day.today {
+            background: var(--secondary-color);
+            color: white;
+        }
+
+        .calendar-day.event {
+            background: #e3f2fd;
+            color: #1976d2;
+            font-weight: 800;
+        }
+
+        .calendar-day.other-month {
+            color: #adb5bd;
+            opacity: 0.5;
+        }
+
+        .event-indicator {
+            position: absolute;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 6px;
+            background: var(--secondary-color);
+            border-radius: 50%;
+        }
+
+        .recent-activity {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: var(--shadow);
+            margin-bottom: 40px;
+        }
+
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .activity-item {
+            display: flex;
+            gap: 15px;
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+            transition: var(--transition);
+        }
+
+        .activity-item:hover {
+            border-color: var(--primary-color);
+        }
+
+        .activity-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-content h4 {
+            font-size: 16px;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .activity-content p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        .activity-time {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                padding: 20px;
+            }
+            
+            .quick-stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .timeline-item {
+                flex-direction: column;
+            }
+            
+            .timeline-date {
+                width: 100%;
+                flex-direction: row;
+                justify-content: flex-start;
+                gap: 20px;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+        <script>
+        // Proteção de rota: redireciona para login se não estiver autenticado
+        if (!localStorage.getItem('token')) {
+            window.location.href = '../login-firebase.html';
+        }
+        </script>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span class="logo-text">Eventflow</span>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            
+            <div class="sidebar-content">
+                <ul class="sidebar-menu">
+                    <li><a href="dashboard.html" class="sidebar-link active">
+                        <i class="fas fa-home"></i> <span>Dashboard</span>
+                    </a></li>
+                    <li><a href="events.html" class="sidebar-link">
+                        <i class="fas fa-calendar-alt"></i> <span>Eventos</span>
+                    </a></li>
+                    <li><a href="calendar.html" class="sidebar-link">
+                        <i class="fas fa-calendar"></i> <span>Calendário</span>
+                    </a></li>
+                    <li><a href="chat.html" class="sidebar-link">
+                        <i class="fas fa-comments"></i> <span>Chat</span>
+                    </a></li>
+                    <li><a href="profile.html" class="sidebar-link">
+                        <i class="fas fa-user"></i> <span>Perfil</span>
+                    </a></li>
+                </ul>
+                
+                <div class="sidebar-footer">
+                    <div class="user-info">
+                        <div class="user-avatar">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                        <div class="user-details">
+                            <span class="user-name">João Silva</span>
+                            <span class="user-role">Administrador</span>
+                        </div>
+                    </div>
+                    <button class="logout-btn" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt"></i> <span>Sair</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Conteúdo Principal -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="main-header">
+                <div class="header-left">
+                    <h1 class="page-title">Dashboard</h1>
+                    <div class="breadcrumb">
+                        <span>Início</span> / <span>Dashboard</span>
+                    </div>
+                </div>
+                
+                <div class="header-right">
+                    <div class="header-search">
+                        <input type="text" placeholder="Pesquisar eventos..." aria-label="Campo de pesquisa">
+                        <button class="search-btn" aria-label="Pesquisar">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="header-notifications">
+                        <button class="notification-btn" aria-label="Notificações">
+                            <i class="fas fa-bell"></i>
+                            <span class="notification-badge">3</span>
+                        </button>
+                    </div>
+                    
+                    <div class="header-user">
+                        <div class="user-avatar-small">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Área de Conteúdo -->
+            <div class="dashboard-container">
+                <!-- Estatísticas Rápidas -->
+                <section class="quick-stats">
+                    <div class="stat-card upcoming">
+                        <div class="stat-header">
+                            <div class="stat-icon upcoming">
+                                <i class="fas fa-calendar-plus"></i>
+                            </div>
+                        </div>
+                        <h3 class="stat-title">Eventos em Breve</h3>
+                        <p class="stat-value" id="upcomingEventsCount">8</p>
+                        <p class="stat-change positive">+2 este mês</p>
+                    </div>
+                    
+                    <div class="stat-card ongoing">
+                        <div class="stat-header">
+                            <div class="stat-icon ongoing">
+                                <i class="fas fa-spinner"></i>
+                            </div>
+                        </div>
+                        <h3 class="stat-title">Em Andamento</h3>
+                        <p class="stat-value" id="ongoingEventsCount">3</p>
+                        <p class="stat-change positive">+1 esta semana</p>
+                    </div>
+                    
+                    <div class="stat-card completed">
+                        <div class="stat-header">
+                            <div class="stat-icon completed">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                        </div>
+                        <h3 class="stat-title">Concluídos</h3>
+                        <p class="stat-value" id="completedEventsCount">12</p>
+                        <p class="stat-change" id="successRate">75% taxa de sucesso</p>
+                    </div>
+                    
+                    <div class="stat-card attendance">
+                        <div class="stat-header">
+                            <div class="stat-icon attendance">
+                                <i class="fas fa-users"></i>
+                            </div>
+                        </div>
+                        <h3 class="stat-title">Participação Total</h3>
+                        <p class="stat-value" id="totalAttendees">1,248</p>
+                        <p class="stat-change positive">+120 esta semana</p>
+                    </div>
+                </section>
+
+                <!-- Grid Principal -->
+                <div class="dashboard-grid">
+                    <!-- Linha do Tempo de Eventos -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-stream"></i> Linha do Tempo</h2>
+                            <a href="events.html" class="view-all-btn">Ver todos os eventos</a>
+                        </div>
+                        <div class="events-timeline" id="eventsTimeline">
+                            <!-- Eventos serão carregados via JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Calendário Widget -->
+                    <div class="dashboard-card calendar-widget-large">
+                        <div class="card-header">
+                            <h2><i class="fas fa-calendar"></i> Calendário</h2>
+                            <a href="calendar.html" class="view-all-btn">Ver calendário</a>
+                        </div>
+                        <div class="calendar-widget">
+                            <div class="calendar-header">
+                                <button class="calendar-nav" id="prevMonth">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <h3 class="calendar-current-month" id="currentMonth">Outubro 2024</h3>
+                                <button class="calendar-nav" id="nextMonth">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                            <div class="calendar-weekdays">
+                                <div>Dom</div>
+                                <div>Seg</div>
+                                <div>Ter</div>
+                                <div>Qua</div>
+                                <div>Qui</div>
+                                <div>Sex</div>
+                                <div>Sáb</div>
+                            </div>
+                            <div class="calendar-days" id="calendarDays">
+                                <!-- Dias serão gerados dinamicamente -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Atividade Recente -->
+                <section class="recent-activity">
+                    <div class="card-header">
+                        <h2><i class="fas fa-history"></i> Atividade Recente</h2>
+                    </div>
+                    <div class="activity-list" id="activityList">
+                        <!-- Atividades serão carregadas via JavaScript -->
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="../script.js"></script>
+    <script>
+        // Dados vindos da API serão sincronizados abaixo
+        let eventsData = [];
+        const activitiesData = EventflowData.notifications || [];
+
+        // Sincroniza eventos a partir do backend
+        async function syncEventsFromBackend() {
+            try {
+                const res = await api.get('/events', { auth: true });
+                const json = await res.json();
+                const items = json.items || [];
+                EventflowData.events = items.map(e => ({
+                    id: e.id,
+                    title: e.title,
+                    description: e.description || '',
+                    date: e.date,
+                    time: e.time,
+                    endDate: e.endDate || e.date,
+                    endTime: e.endTime || e.time,
+                    location: e.location || '',
+                    address: e.address || '',
+                    category: e.category || 'Tecnologia',
+                    status: e.status || 'upcoming',
+                    capacity: e.capacity || 50,
+                    registered: e.registered || 0,
+                    organizer: e.organizer || 'Organizador',
+                    color: e.color || '#1976d2',
+                    attendees: e.attendees || []
+                }));
+                eventsData = EventflowData.events;
+            } catch (err) {
+                console.warn('Falha ao sincronizar eventos para a Dashboard. Usando dados locais.', err);
+                eventsData = EventflowData.events || [];
+            }
+        }
+
+        // Inicializar calendário
+        let currentDate = new Date();
+        let currentMonth = currentDate.getMonth();
+        let currentYear = currentDate.getFullYear();
+
+        // Função para atualizar estatísticas
+        function updateStatistics() {
+            const stats = EventflowData.getStatistics();
+            
+            document.getElementById('upcomingEventsCount').textContent = 
+                EventflowData.events.filter(e => e.status === 'upcoming').length;
+            document.getElementById('ongoingEventsCount').textContent = 
+                EventflowData.events.filter(e => e.status === 'ongoing').length;
+            document.getElementById('completedEventsCount').textContent = 
+                EventflowData.events.filter(e => e.status === 'completed').length;
+            document.getElementById('successRate').textContent = 
+                `${stats.eventSuccessRate}% taxa de sucesso`;
+            document.getElementById('totalAttendees').textContent = 
+                stats.totalAttendees.toLocaleString();
+        }
+
+        // Função para atualizar calendário
+        function updateCalendar() {
+            const monthNames = [
+                "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+            ];
+
+            document.getElementById('currentMonth').textContent = 
+                `${monthNames[currentMonth]} ${currentYear}`;
+
+            const firstDay = new Date(currentYear, currentMonth, 1);
+            const lastDay = new Date(currentYear, currentMonth + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startingDay = firstDay.getDay();
+
+            let calendarHTML = '';
+            
+            // Dias do mês anterior
+            const prevMonthLastDay = new Date(currentYear, currentMonth, 0).getDate();
+            for (let i = startingDay - 1; i >= 0; i--) {
+                calendarHTML += `<div class="calendar-day other-month">${prevMonthLastDay - i}</div>`;
+            }
+
+            // Dias do mês atual
+            const today = new Date();
+            const eventDates = eventsData.map(event => new Date(event.date).getDate());
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const isToday = day === today.getDate() && 
+                               currentMonth === today.getMonth() && 
+                               currentYear === today.getFullYear();
+                const hasEvent = eventDates.includes(day);
+                const dayClass = `calendar-day ${isToday ? 'today' : ''} ${hasEvent ? 'event' : ''}`;
+                
+                calendarHTML += `
+                    <div class="${dayClass}" data-day="${day}">
+                        ${day}
+                        ${hasEvent ? '<span class="event-indicator"></span>' : ''}
+                    </div>
+                `;
+            }
+
+            // Dias do próximo mês
+            const totalCells = 42;
+            const remainingCells = totalCells - (startingDay + daysInMonth);
+            for (let day = 1; day <= remainingCells; day++) {
+                calendarHTML += `<div class="calendar-day other-month">${day}</div>`;
+            }
+
+            document.getElementById('calendarDays').innerHTML = calendarHTML;
+
+            // Adicionar eventos aos dias
+            document.querySelectorAll('.calendar-day[data-day]').forEach(day => {
+                day.addEventListener('click', () => {
+                    const dayNum = day.dataset.day;
+                    showEventsForDate(dayNum);
+                });
+            });
+        }
+
+        // Função para carregar eventos na timeline
+        function loadEventsTimeline() {
+            const timeline = document.getElementById('eventsTimeline');
+            if (!timeline) return;
+
+            const sortedEvents = [...eventsData]
+                .sort((a, b) => new Date(a.date) - new Date(b.date))
+                .slice(0, 5);
+
+            timeline.innerHTML = sortedEvents.map(event => {
+                const date = new Date(event.date);
+                const day = date.getDate();
+                const month = date.toLocaleDateString('pt-BR', { month: 'short' });
+                
+                return `
+                    <div class="timeline-item" data-event-id="${event.id}">
+                        <div class="timeline-date">
+                            <span class="timeline-day">${day}</span>
+                            <span class="timeline-month">${month}</span>
+                        </div>
+                        <div class="timeline-content">
+                            <h3>${event.title}</h3>
+                            <div class="timeline-details">
+                                <div class="timeline-detail">
+                                    <i class="fas fa-clock"></i>
+                                    <span>${event.time}</span>
+                                </div>
+                                <div class="timeline-detail">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <span>${event.location}</span>
+                                </div>
+                                <div class="timeline-detail">
+                                    <i class="fas fa-users"></i>
+                                    <span>${event.registered}/${event.capacity}</span>
+                                </div>
+                            </div>
+                            <span class="timeline-status status-${event.status}">
+                                ${getStatusText(event.status)}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Adicionar eventos de clique
+            timeline.querySelectorAll('.timeline-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const eventId = item.dataset.eventId;
+                    showEventDetails(eventId);
+                });
+            });
+        }
+
+        // Função para carregar atividades
+        function loadActivities() {
+            const activityList = document.getElementById('activityList');
+            if (!activityList) return;
+
+            activityList.innerHTML = activitiesData.map(activity => {
+                const time = new Date(activity.time);
+                const timeAgo = getTimeAgo(time);
+                
+                return `
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="fas fa-${getActivityIcon(activity.type)}"></i>
+                        </div>
+                        <div class="activity-content">
+                            <h4>${activity.title}</h4>
+                            <p>${activity.message}</p>
+                            <span class="activity-time">${timeAgo}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Funções auxiliares
+        function getMonthName(month) {
+            const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            return months[parseInt(month) - 1];
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'upcoming': 'Em breve',
+                'ongoing': 'Em andamento',
+                'completed': 'Concluído'
+            };
+            return statusMap[status] || status;
+        }
+
+        function getActivityIcon(type) {
+            const iconMap = {
+                'registration': 'user-plus',
+                'update': 'edit',
+                'message': 'comment'
+            };
+            return iconMap[type] || 'bell';
+        }
+
+        function getTimeAgo(date) {
+            const now = new Date();
+            const diff = now - date;
+            
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            
+            if (minutes < 1) return 'Agora mesmo';
+            if (minutes < 60) return `Há ${minutes} min`;
+            if (hours < 24) return `Há ${hours} h`;
+            if (days < 7) return `Há ${days} d`;
+            
+            return date.toLocaleDateString('pt-BR');
+        }
+
+        function showEventsForDate(day) {
+            const date = new Date(currentYear, currentMonth, day);
+            const dateStr = date.toISOString().split('T')[0];
+            
+            const eventsOnDate = eventsData.filter(event => 
+                event.date === dateStr
+            );
+            
+            if (eventsOnDate.length === 0) {
+                alert(`Nenhum evento encontrado para ${day}/${currentMonth + 1}/${currentYear}`);
+            } else {
+                window.location.href = `events.html?date=${dateStr}`;
+            }
+        }
+
+        function showEventDetails(eventId) {
+            const event = eventsData.find(e => e.id == eventId);
+            if (event) {
+                window.location.href = `event-details.html?id=${eventId}`;
+            }
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            (async () => {
+                // Carrega perfil para preencher nome/cargo na UI
+                try {
+                    const p = await api.get('/auth/profile', { auth: true });
+                    if (p.ok) {
+                        const data = await p.json();
+                        const profile = data.user || {};
+                        const name = profile.name || profile.email || 'Usuário';
+                        const role = profile.role || 'Usuário';
+                        document.querySelectorAll('.user-name').forEach(el => el.textContent = name);
+                        document.querySelectorAll('.user-role').forEach(el => el.textContent = role);
+                    }
+                } catch (e) {}
+
+                // Sincroniza eventos e atualiza widgets
+                await syncEventsFromBackend();
+                updateStatistics();
+                updateCalendar();
+                loadEventsTimeline();
+                loadActivities();
+            })();
+
+            // Navegação do calendário
+            document.getElementById('prevMonth')?.addEventListener('click', () => {
+                currentMonth--;
+                if (currentMonth < 0) {
+                    currentMonth = 11;
+                    currentYear--;
+                }
+                updateCalendar();
+            });
+
+            document.getElementById('nextMonth')?.addEventListener('click', () => {
+                currentMonth++;
+                if (currentMonth > 11) {
+                    currentMonth = 0;
+                    currentYear++;
+                }
+                updateCalendar();
+            });
+
+            // Sidebar toggle
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('sidebar');
+
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', () => {
+                    sidebar.classList.toggle('collapsed');
+                });
+            }
+
+            // Logout
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', () => {
+                    if (confirm('Tem certeza que deseja sair?')) {
+                        api.token.clear();
+                        window.location.href = '../login-firebase.html';
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Eventflow</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #2E5051, #3A7B7D);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #2E5051, #4CAF50);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+        }
+        
+        .logo-icon i {
+            font-size: 36px;
+            color: white;
+        }
+        
+        .logo h1 {
+            color: #2E5051;
+            font-size: 32px;
+            font-weight: 800;
+        }
+        
+        .logo p {
+            color: #666;
+            font-size: 16px;
+            margin-top: 5px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2E5051;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #E0E0E0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #2E5051;
+            box-shadow: 0 0 0 3px rgba(46, 80, 81, 0.1);
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: #2E5051;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .btn:hover {
+            background: #1E4041;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(46, 80, 81, 0.2);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .success {
+            background: #D4EDDA;
+            color: #155724;
+            border: 1px solid #C3E6CB;
+            display: block;
+        }
+        
+        .error {
+            background: #F8D7DA;
+            color: #721C24;
+            border: 1px solid #F5C6CB;
+            display: block;
+        }
+        
+        .links {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #E0E0E0;
+        }
+        
+        .links a {
+            color: #2E5051;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: color 0.3s;
+        }
+        
+        .links a:hover {
+            color: #4CAF50;
+            text-decoration: underline;
+        }
+        
+        .password-container {
+            position: relative;
+        }
+        
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <div class="logo-icon">
+                <i class="fas fa-calendar-alt"></i>
+            </div>
+            <h1>Eventflow</h1>
+            <p>Sistema de Gestão de Eventos</p>
+        </div>
+        
+        <div id="message" class="message"></div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email"><i class="fas fa-envelope"></i> Email:</label>
+                <input type="email" id="email" placeholder="seu@email.com" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password"><i class="fas fa-lock"></i> Senha:</label>
+                <div class="password-container">
+                    <input type="password" id="password" placeholder="Sua senha" required>
+                    <button type="button" class="toggle-password" id="togglePassword">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn" id="loginBtn">
+                <span id="btnText">Entrar</span>
+                <div id="btnLoading" class="loading" style="display: none;"></div>
+            </button>
+        </form>
+        
+        <div class="links">
+            <p>
+                <a href="register-firebase.html">Criar uma conta</a> | 
+                <a href="forgot-password.html">Esqueci minha senha</a>
+            </p>
+            <p style="margin-top: 10px;">
+                <a href="index.html"><i class="fas fa-home"></i> Voltar para Home</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Helper de API -->
+    <script src="api.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('loginForm');
+            const message = document.getElementById('message');
+            const loginBtn = document.getElementById('loginBtn');
+            const btnText = document.getElementById('btnText');
+            const btnLoading = document.getElementById('btnLoading');
+            const togglePassword = document.getElementById('togglePassword');
+            const passwordInput = document.getElementById('password');
+            
+            // Se já estiver logado (token presente), redireciona para dashboard
+            if (localStorage.getItem('token')) {
+                window.location.href = 'pages/dashboard.html';
+            }
+            
+            // Alternar visibilidade da senha
+            togglePassword.addEventListener('click', function() {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                this.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+            });
+            
+            // Envio do formulário
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+                
+                // Validação
+                if (!email || !password) {
+                    showMessage('Preencha todos os campos', 'error');
+                    return;
+                }
+                
+                if (!validateEmail(email)) {
+                    showMessage('Digite um email válido', 'error');
+                    return;
+                }
+                
+                // Mostrar loading
+                loginBtn.disabled = true;
+                btnText.textContent = 'Entrando...';
+                btnLoading.style.display = 'block';
+                
+                // Tentar login via backend
+                try {
+                    const response = await api.post('/auth/login', { email, password });
+                    const result = await response.json();
+                    if (response.ok) {
+                        api.token.set(result.token);
+                        showMessage('✅ Login realizado com sucesso! Redirecionando...', 'success');
+                        setTimeout(() => { window.location.href = 'pages/dashboard.html'; }, 1500);
+                    } else {
+                        showMessage('❌ ' + (result.error || 'Erro ao fazer login'), 'error');
+                        loginBtn.disabled = false; btnText.textContent = 'Entrar'; btnLoading.style.display = 'none';
+                    }
+                } catch (err) {
+                    showMessage('❌ Erro de conexão com o servidor', 'error');
+                    loginBtn.disabled = false; btnText.textContent = 'Entrar'; btnLoading.style.display = 'none';
+                }
+            });
+            
+            // Funções auxiliares
+            function showMessage(text, type) {
+                message.textContent = text;
+                message.className = 'message ' + type;
+                
+                // Auto-esconder mensagens de sucesso
+                if (type === 'success') {
+                    setTimeout(() => {
+                        message.style.display = 'none';
+                    }, 5000);
+                }
+            }
+            
+            function validateEmail(email) {
+                const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return re.test(email);
+            }
+        });
+    </script>
+</body>
+</html>
