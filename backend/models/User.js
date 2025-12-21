@@ -2,6 +2,81 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
+const useMemory = !process.env.MONGODB_URI || String(process.env.NO_DB).toLowerCase() === 'true';
+
+if (useMemory) {
+    const users = [];
+
+    class User {
+        constructor(obj = {}) {
+            this._id = obj._id || crypto.randomBytes(12).toString('hex');
+            this.name = obj.name;
+            this.email = String(obj.email || '').toLowerCase().trim();
+            this.password = obj.password; // será hash em save()
+            this.role = obj.role || 'participante';
+            this.phone = obj.phone || '';
+            this.position = obj.position || '';
+            this.department = obj.department || '';
+            this.location = obj.location || '';
+            this.bio = obj.bio || '';
+            this.avatar = obj.avatar || null;
+            this.emailNotifications = obj.emailNotifications ?? true;
+            this.pushNotifications = obj.pushNotifications ?? true;
+            this.eventReminders = obj.eventReminders ?? true;
+            this.messageNotifications = obj.messageNotifications ?? true;
+            this.twoFactorEnabled = obj.twoFactorEnabled ?? false;
+            this.eventsCount = obj.eventsCount ?? 0;
+            this.participantsCount = obj.participantsCount ?? 0;
+            this.successRate = obj.successRate ?? 0;
+            this.resetPasswordToken = obj.resetPasswordToken || null;
+            this.resetPasswordExpires = obj.resetPasswordExpires || null;
+            this.createdAt = obj.createdAt || new Date();
+            this.updatedAt = obj.updatedAt || new Date();
+        }
+
+        async save() {
+            // hash de senha se for texto puro
+            if (this.password && !String(this.password).startsWith('$2')) {
+                const salt = await bcrypt.genSalt(10);
+                this.password = await bcrypt.hash(String(this.password), salt);
+            }
+            this.updatedAt = new Date();
+            const idx = users.findIndex(u => String(u._id) === String(this._id));
+            if (idx >= 0) users[idx] = { ...users[idx], ...this };
+            else users.push({ ...this });
+            return this;
+        }
+
+        async comparePassword(candidatePassword) {
+            return bcrypt.compare(String(candidatePassword), String(this.password));
+        }
+
+        generatePasswordReset() {
+            const rawToken = crypto.randomBytes(32).toString('hex');
+            const hashed = crypto.createHash('sha256').update(rawToken).digest('hex');
+            this.resetPasswordToken = hashed;
+            this.resetPasswordExpires = Date.now() + 60 * 60 * 1000;
+            return rawToken;
+        }
+
+        static async findOne(query) {
+            if (!query || !Object.keys(query).length) return users[0] || null;
+            if (query.email) {
+                const email = String(query.email).toLowerCase().trim();
+                return users.find(u => u.email === email) || null;
+            }
+            return users[0] || null;
+        }
+
+        static async findById(id) {
+            return users.find(u => String(u._id) === String(id)) || null;
+        }
+    }
+
+    module.exports = User;
+    return;
+}
+
 const userSchema = new mongoose.Schema({
     name: {
         type: String,
