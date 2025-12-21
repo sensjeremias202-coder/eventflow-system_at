@@ -30,6 +30,24 @@ app.get('/', (req, res) => {
     res.json({ message: 'API do Eventflow funcionando!' });
 });
 
+// Rota de saúde para health check da plataforma
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', uptime: process.uptime() });
+});
+
+// HEAD root para alguns health checks que usam HEAD
+app.head('/', (req, res) => {
+    res.status(200).end();
+});
+
+// 404 amigável para rotas não encontradas
+app.use((req, res, next) => {
+    if (!res.headersSent) {
+        return res.status(404).json({ error: 'Rota não encontrada', path: req.path });
+    }
+    next();
+});
+
 // Middleware de erro
 app.use((err, req, res, next) => {
     console.error(err.stack);
