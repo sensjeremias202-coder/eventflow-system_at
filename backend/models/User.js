@@ -60,16 +60,22 @@ if (useMemory) {
         }
 
         static async findOne(query) {
-            if (!query || !Object.keys(query).length) return users[0] || null;
+            if (!query || !Object.keys(query).length) {
+                const u = users[0];
+                return u ? new User(u) : null;
+            }
             if (query.email) {
                 const email = String(query.email).toLowerCase().trim();
-                return users.find(u => u.email === email) || null;
+                const u = users.find(u => u.email === email);
+                return u ? new User(u) : null;
             }
-            return users[0] || null;
+            const u = users[0];
+            return u ? new User(u) : null;
         }
 
         static async findById(id) {
-            return users.find(u => String(u._id) === String(id)) || null;
+            const u = users.find(u => String(u._id) === String(id));
+            return u ? new User(u) : null;
         }
     }
 
