@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: eventflow-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    plan: free
+    envVars:
+      - key: PORT
+        value: 5000
+      # Defina no painel da Render os segredos abaixo
+      # - key: MONGODB_URI
+      #   value: mongodb+srv://usuario:senha@cluster/eventflow?retryWrites=true&w=majority
+      # - key: JWT_SECRET
+      #   value: um-segredo-forte
+      # - key: CORS_ORIGIN
+      #   value: https://seu-frontend.com
