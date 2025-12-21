@@ -4,10 +4,6 @@
 // Se preferir localStorage: localStorage.setItem('API_BASE_URL', 'https://seu-servidor.com');
 
 (function(){
-  // Ajuste esta URL para seu servidor online
-  var REMOTE = window.API_BASE_URL || null;
-  if (!REMOTE) {
-    // Placeholder: defina abaixo a URL do servidor online
-    // window.API_BASE_URL = 'https://seu-servidor.com';
-  }
+  // Defina a URL da API online (Render)
+  window.API_BASE_URL = 'https://eventflow-system-at.onrender.com';
 })();
