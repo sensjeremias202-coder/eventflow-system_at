@@ -5,5 +5,5 @@
 
 (function(){
   // Defina a URL da API online (Render)
-  window.API_BASE_URL = 'https://eventflow-system-at.onrender.com';
+  window.API_BASE_URL = 'https://eventflow-system-at-2.onrender.com';
 })();

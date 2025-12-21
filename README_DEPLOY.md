@@ -27,7 +27,7 @@ Este guia ensina a publicar o backend online usando Render e MongoDB Atlas.
 ## Passo 3 — Apontar o frontend
 - Defina a URL no `config.js` (antes de `api.js`) ou via `localStorage`:
   ```js
-  window.API_BASE_URL = 'https://eventflow-backend.onrender.com';
+  window.API_BASE_URL = 'https://eventflow-system-at-2.onrender.com';
   // ou
   localStorage.setItem('API_BASE_URL', 'https://eventflow-backend.onrender.com');
   ```
@@ -35,7 +35,7 @@ Este guia ensina a publicar o backend online usando Render e MongoDB Atlas.
 ## Passo 4 — Testes rápidos
 - Teste saúde:
   ```bash
-  curl https://eventflow-backend.onrender.com/
+  curl https://eventflow-system-at-2.onrender.com/
   ```
 - Fluxos de login/registro a partir das páginas: `login-firebase.html`, `register-firebase.html`.
 
