@@ -306,7 +306,8 @@
                         loginBtn.disabled = false; btnText.textContent = 'Entrar'; btnLoading.style.display = 'none';
                     }
                 } catch (err) {
-                    showMessage('❌ Erro de conexão com o servidor', 'error');
+                    const msg = (err && err.message) ? 'Erro: ' + err.message : 'Erro de conexão com o servidor';
+                    showMessage('❌ ' + msg, 'error');
                     loginBtn.disabled = false; btnText.textContent = 'Entrar'; btnLoading.style.display = 'none';
                 }
             });
