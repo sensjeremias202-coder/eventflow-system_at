@@ -58,9 +58,14 @@ if (useMemory) {
           return false;
         }));
       }
-      return {
-        sort: ({}) => ({ skip: (n) => ({ limit: (m) => list.slice(n, n + m) }) })
+      const chain = {
+        sort: () => ({
+          skip: (n = 0) => ({
+            limit: (m = list.length) => list.slice(Number(n) || 0, (Number(n) || 0) + (Number(m) || list.length))
+          })
+        })
       };
+      return chain;
     }
 
     static async findById(id){
