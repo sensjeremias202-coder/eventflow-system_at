@@ -42,7 +42,7 @@ if (useMemory) {
       return { acknowledged: true };
     }
 
-    static async find(filter = {}){
+    static find(filter = {}){
       let list = [...events];
       if (filter.status) list = list.filter(e => e.status === filter.status);
       if (filter.category) list = list.filter(e => e.category === filter.category);
