@@ -55,7 +55,15 @@ router.get('/', authMiddleware, async (req, res) => {
       if (endDate) filter.date.$lte = endDate;
     }
     const skip = (Number(page) - 1) * Number(limit);
-    const events = await Event.find(filter).sort({ date: 1, time: 1 }).skip(skip).limit(Number(limit));
+    let query = Event.find(filter);
+    try {
+      if (typeof query.sort === 'function') query = query.sort({ date: 1, time: 1 });
+      if (typeof query.skip === 'function') query = query.skip(skip);
+      if (typeof query.limit === 'function') query = query.limit(Number(limit));
+    } catch (e) {
+      // fallback seguro em modo memória
+    }
+    const events = await Promise.resolve(query);
     res.json({ items: events.map(toClient), count: events.length });
   } catch (err) {
     console.error('Erro ao listar eventos:', err);
