@@ -114,6 +114,20 @@
             background: white;
         }
 
+        /* Busca de conversas */
+        .conversation-search {
+            padding: 10px 16px;
+            border-bottom: 1px solid #e1e1e1;
+            background: #f7f8f9;
+        }
+        .conversation-search input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid #dfe3e6;
+            font-size: 14px;
+        }
+
         .conversation-item {
             display: flex;
             align-items: center;
@@ -417,6 +431,12 @@
             max-width: 100%;
         }
 
+        .message-sender {
+            font-size: 12px;
+            color: #54656f;
+            margin: 0 0 2px 2px;
+        }
+
         .message-item.sent .message-content {
             background: var(--whatsapp-message-sent);
             border-top-right-radius: 0;
@@ -678,9 +698,17 @@
                     <i class="fas fa-comments"></i>
                     <span class="logo-text">Eventflow Chat</span>
                 </div>
+                <button class="chat-action-btn" id="toggleSidebarBtn" title="Mostrar/ocultar lista">
+                    <i class="fas fa-bars"></i>
+                </button>
                 <button class="chat-action-btn" id="newChatBtn" title="Nova conversa">
                     <i class="fas fa-edit"></i>
                 </button>
+            </div>
+
+            <!-- Busca de Conversas -->
+            <div class="conversation-search">
+                <input type="text" id="conversationSearchInput" placeholder="Buscar conversas..." aria-label="Buscar conversas">
             </div>
 
             <!-- Status do Usuário -->
@@ -754,13 +782,14 @@
                         </button>
                     </div>
                     <div class="message-input" contenteditable="true" id="messageInput"
-                         role="textbox" aria-label="Digite sua mensagem"></div>
+                         role="textbox" aria-label="Digite sua mensagem" aria-multiline="true"></div>
                     <button class="voice-btn" id="voiceBtn" title="Gravar áudio" style="display: none;">
                         <i class="fas fa-microphone"></i>
                     </button>
                     <button class="send-button" id="sendMessageBtn" title="Enviar mensagem">
                         <i class="fas fa-paper-plane"></i>
                     </button>
+                    <input type="file" id="attachmentInput" accept="image/*" style="display:none" aria-hidden="true" />
                 </div>
             </div>
         </div>
@@ -1038,6 +1067,7 @@
         // Carregar mensagens
         function loadMessages(conversationId) {
             const messagesContainer = document.getElementById('messagesContainer');
+            messagesContainer.setAttribute('aria-live', 'polite');
             const messages = messagesData[conversationId] || [];
 
             if (messages.length === 0) {
@@ -1064,15 +1094,16 @@
                     </div>
                     ${dateMessages.map(msg => {
                         const isCurrentUser = msg.sender === (currentUser?.name || 'João Silva');
-                        const statusIcon = getStatusIcon(msg.status);
+                        const conv = conversationsData.find(c => c.id == conversationId);
+                        const showSender = conv?.isGroup && !isCurrentUser;
+                        const safeMessage = escapeHTML(String(msg.message ?? ''));
                         
                         return `
                             <div class="message-group ${isCurrentUser ? 'sent' : 'received'}">
                                 <div class="message-wrapper">
-                                    <div class="message-item ${isCurrentUser ? 'sent' : 'received'}">
-                                        <div class="message-content">
-                                            ${msg.message}
-                                        </div>
+                                    <div class="message-item ${isCurrentUser ? 'sent' : 'received'}" data-message-id="${msg.id}">
+                                        ${showSender ? `<div class="message-sender">${escapeHTML(String(msg.sender || ''))}</div>` : ''}
+                                        <div class="message-content">${safeMessage}</div>
                                         <div class="message-info">
                                             <span class="message-time">${msg.time}</span>
                                             ${isCurrentUser ? `
@@ -1109,13 +1140,14 @@
         }
 
         // Obter ícone de status
-        function getStatusIcon(status) {
-            switch(status) {
-                case 'sent': return '✓';
-                case 'delivered': return '✓✓';
-                case 'read': return '✓✓';
-                default: return '';
-            }
+        // Escapar HTML para segurança
+        function escapeHTML(str) {
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         }
 
         // Enviar mensagem
@@ -1190,16 +1222,12 @@
 
         // Atualizar status da mensagem
         function updateMessageStatus(messageId, status) {
-            const messageGroups = document.querySelectorAll('.message-group.sent');
-            messageGroups.forEach(group => {
-                const message = group.querySelector('.message-item');
-                if (message && message.dataset.messageId == messageId) {
-                    const statusIcon = message.querySelector('.message-status i');
-                    if (statusIcon) {
-                        statusIcon.className = `fas fa-check${status === 'read' ? '-double' : ''} ${status}`;
-                    }
-                }
-            });
+            const message = document.querySelector(`.message-item[data-message-id="${messageId}"]`);
+            if (!message) return;
+            const statusIcon = message.querySelector('.message-status i');
+            if (statusIcon) {
+                statusIcon.className = `fas fa-check${status === 'read' ? '-double' : ''} ${status}`;
+            }
         }
 
         // Obter hora atual formatada
@@ -1211,8 +1239,12 @@
 
         // Mostrar modal de novo chat
         function showNewChatModal() {
-            document.getElementById('newChatModal').classList.add('active');
+            const modal = document.getElementById('newChatModal');
+            modal.classList.add('active');
             loadEventsForNewChat();
+            // Acessibilidade: foco inicial no back
+            const back = document.getElementById('modalBackBtn');
+            if (back) back.focus();
         }
 
         // Fechar modal
@@ -1221,10 +1253,10 @@
         }
 
         // Carregar eventos para novo chat
-        function loadEventsForNewChat() {
+        async function loadEventsForNewChat() {
             const eventList = document.getElementById('eventList');
             
-            // Simular carregamento de eventos
+            // Loading
             eventList.innerHTML = `
                 <div style="padding: 20px; text-align: center;">
                     <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: var(--whatsapp-icon);"></i>
@@ -1232,62 +1264,72 @@
                 </div>
             `;
 
-            // Simular delay de carregamento
-            setTimeout(() => {
-                const events = EventflowData?.events || [
-                    { id: 1, title: "Conferência Tech 2024", date: "15 Nov", location: "São Paulo" },
-                    { id: 2, title: "Workshop Marketing", date: "20 Nov", location: "Online" },
-                    { id: 3, title: "Meetup Desenvolvedores", date: "25 Nov", location: "Rio de Janeiro" }
+            let events = [];
+            try {
+                const res = await api.get('/events', { auth: true });
+                if (res.ok) {
+                    const data = await res.json();
+                    events = Array.isArray(data) ? data : (data.events || []);
+                }
+            } catch (err) {
+                console.warn('Falha ao buscar eventos no backend. Usando fallback.', err);
+            }
+
+            if (!events || events.length === 0) {
+                events = [
+                    { _id: 1, id: 1, title: "Conferência Tech 2024", date: "15 Nov", location: "São Paulo" },
+                    { _id: 2, id: 2, title: "Workshop Marketing", date: "20 Nov", location: "Online" },
+                    { _id: 3, id: 3, title: "Meetup Desenvolvedores", date: "25 Nov", location: "Rio de Janeiro" }
                 ];
+            }
 
-                eventList.innerHTML = events.map(event => {
-                    return `
-                        <div class="conversation-item" data-event-id="${event.id}" style="cursor: pointer;">
-                            <div class="conversation-avatar">
-                                <div class="conversation-avatar-img">
-                                    <i class="fas fa-calendar-alt"></i>
-                                </div>
+            eventList.innerHTML = events.map(event => {
+                const eid = event._id || event.id;
+                return `
+                    <div class="conversation-item" data-event-id="${eid}" style="cursor: pointer;">
+                        <div class="conversation-avatar">
+                            <div class="conversation-avatar-img">
+                                <i class="fas fa-calendar-alt"></i>
                             </div>
-                            <div class="conversation-info">
-                                <div class="conversation-header">
-                                    <div class="conversation-name">${event.title}</div>
-                                </div>
-                                <div class="conversation-last">
-                                    <div class="conversation-preview">${event.date} • ${event.location}</div>
-                                </div>
-                            </div>
-                            <button class="chat-action-btn" style="background: var(--whatsapp-green); color: white;">
-                                <i class="fas fa-plus"></i>
-                            </button>
                         </div>
-                    `;
-                }).join('');
+                        <div class="conversation-info">
+                            <div class="conversation-header">
+                                <div class="conversation-name">${escapeHTML(String(event.title || 'Evento'))}</div>
+                            </div>
+                            <div class="conversation-last">
+                                <div class="conversation-preview">${escapeHTML(String(event.date || 'Em breve'))} • ${escapeHTML(String(event.location || 'A definir'))}</div>
+                            </div>
+                        </div>
+                        <button class="chat-action-btn" style="background: var(--whatsapp-green); color: white;">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
 
-                // Adicionar eventos de clique
-                eventList.querySelectorAll('.conversation-item').forEach(item => {
-                    item.addEventListener('click', (e) => {
-                        if (!e.target.closest('.chat-action-btn')) {
-                            createNewConversation(item.dataset.eventId);
-                        }
-                    });
-                    
-                    const plusBtn = item.querySelector('.chat-action-btn');
-                    if (plusBtn) {
-                        plusBtn.addEventListener('click', () => {
-                            createNewConversation(item.dataset.eventId);
-                        });
+            // Eventos de clique
+            eventList.querySelectorAll('.conversation-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    if (!e.target.closest('.chat-action-btn')) {
+                        createNewConversation(item.dataset.eventId);
                     }
                 });
-            }, 500);
+                const plusBtn = item.querySelector('.chat-action-btn');
+                if (plusBtn) {
+                    plusBtn.addEventListener('click', () => {
+                        createNewConversation(item.dataset.eventId);
+                    });
+                }
+            });
         }
 
         // Criar nova conversa
         function createNewConversation(eventId) {
-            const events = EventflowData?.events || [];
-            const event = events.find(e => e.id == eventId);
+            const events = (window.EventflowData?.events || []);
+            let ev = events.find(e => (e._id || e.id) == eventId);
             
-            if (!event) {
-                event = { id: eventId, title: `Evento ${eventId}`, date: "Em breve", location: "A definir" };
+            if (!ev) {
+                ev = { id: eventId, title: `Evento ${eventId}`, date: "Em breve", location: "A definir" };
             }
 
             // Verificar se já existe conversa
@@ -1301,7 +1343,7 @@
             // Criar nova conversa
             const newConversation = {
                 id: Date.now(),
-                name: event.title,
+                name: ev.title,
                 lastMessage: "Conversa iniciada sobre o evento",
                 time: "Agora",
                 unread: 0,
@@ -1360,11 +1402,35 @@
             document.getElementById('modalBackBtn').addEventListener('click', closeModal);
             document.getElementById('sendMessageBtn').addEventListener('click', sendMessage);
 
+            // Inicialização estado voice/send
+            const messageInput = document.getElementById('messageInput');
+            const voiceBtn = document.getElementById('voiceBtn');
+            const sendBtn = document.getElementById('sendMessageBtn');
+            if (!messageInput.textContent.trim()) {
+                voiceBtn.style.display = 'flex';
+                sendBtn.style.display = 'none';
+            } else {
+                voiceBtn.style.display = 'none';
+                sendBtn.style.display = 'flex';
+            }
+
+            // Paste seguro (texto puro)
+            messageInput.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const text = (e.clipboardData || window.clipboardData).getData('text');
+                document.execCommand('insertText', false, text);
+            });
+
             // Enviar com Enter
             document.getElementById('messageInput').addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage();
+                }
+                if (e.key === 'Escape') {
+                    // Esc fecha modal
+                    const modal = document.getElementById('newChatModal');
+                    if (modal.classList.contains('active')) closeModal();
                 }
             });
 
@@ -1386,9 +1452,34 @@
                 showToast('Emojis em breve!');
             });
 
-            // Botão de anexo
+            // Botão de anexo (imagem preview simples)
+            const attachmentInput = document.getElementById('attachmentInput');
             document.getElementById('attachmentBtn').addEventListener('click', () => {
-                showToast('Anexar arquivo');
+                attachmentInput.click();
+            });
+            attachmentInput.addEventListener('change', () => {
+                const file = attachmentInput.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    if (!currentConversationId) return;
+                    const newMessage = {
+                        id: Date.now(),
+                        sender: currentUser?.name || 'João Silva',
+                        message: '[imagem]',
+                        time: getCurrentTime(),
+                        type: 'sent',
+                        status: 'sent',
+                        date: 'Hoje',
+                        imageDataUrl: reader.result
+                    };
+                    if (!messagesData[currentConversationId]) messagesData[currentConversationId] = [];
+                    messagesData[currentConversationId].push(newMessage);
+                    // render com imagem
+                    loadMessages(currentConversationId);
+                    attachmentInput.value = '';
+                };
+                reader.readAsDataURL(file);
             });
 
             // Responsividade: toggle sidebar em mobile
@@ -1410,14 +1501,11 @@
             }
 
             // Auto-expandir input
-            const messageInput = document.getElementById('messageInput');
             messageInput.addEventListener('input', function() {
                 this.style.height = 'auto';
                 this.style.height = Math.min(this.scrollHeight, 120) + 'px';
                 
                 // Mostrar/ocultar botão de voz
-                const voiceBtn = document.getElementById('voiceBtn');
-                const sendBtn = document.getElementById('sendMessageBtn');
                 if (this.textContent.trim()) {
                     voiceBtn.style.display = 'none';
                     sendBtn.style.display = 'flex';
@@ -1425,6 +1513,23 @@
                     voiceBtn.style.display = 'flex';
                     sendBtn.style.display = 'none';
                 }
+            });
+            // Toggle sidebar explicit (mobile)
+            document.getElementById('toggleSidebarBtn').addEventListener('click', () => {
+                document.getElementById('sidebar').classList.toggle('hidden');
+            });
+
+            // Busca de conversas
+            const searchInput = document.getElementById('conversationSearchInput');
+            searchInput.addEventListener('input', () => {
+                const term = searchInput.value.toLowerCase();
+                const items = document.querySelectorAll('.conversation-item');
+                items.forEach(item => {
+                    const nameEl = item.querySelector('.conversation-name');
+                    const previewEl = item.querySelector('.conversation-preview');
+                    const text = `${nameEl?.textContent || ''} ${previewEl?.textContent || ''}`.toLowerCase();
+                    item.style.display = text.includes(term) ? '' : 'none';
+                });
             });
 
             // Carregar conversa padrão se houver
@@ -1474,6 +1579,23 @@
             }
         `;
         document.head.appendChild(style);
+
+        // Indicador de digitação (UX)
+        function showTypingIndicator() {
+            const container = document.getElementById('messagesContainer');
+            const indicator = document.createElement('div');
+            indicator.className = 'typing-indicator';
+            indicator.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+            container.appendChild(indicator);
+            setTimeout(() => indicator.remove(), 1500);
+        }
+
+        // Exemplo: mostrar indicador antes da resposta automática
+        const _origSendMessage = sendMessage;
+        sendMessage = async function() {
+            await _origSendMessage();
+            showTypingIndicator();
+        };
     </script>
 </body>
 </html>
