@@ -960,7 +960,7 @@
             }
         }
 
-        // Carregar conversas
+        // Renderizar conversas do array conversationsData
         function loadConversations() {
             const conversationsList = document.getElementById('conversationsList');
             if (!conversationsList) return;
@@ -1014,6 +1014,33 @@
                     }
                 });
             });
+        }
+
+        // Buscar conversas reais do backend
+        async function fetchRealConversations() {
+            try {
+                const res = await api.get('/chat/conversations', { auth: true });
+                const data = res.ok ? await res.json() : { conversations: [] };
+                const convs = Array.isArray(data.conversations) ? data.conversations : [];
+                conversationsData.length = 0;
+                convs.forEach(c => {
+                    conversationsData.push({
+                        id: c._id,
+                        name: c.name,
+                        lastMessage: c.lastMessage || '',
+                        time: c.time || '',
+                        unread: c.unread || 0,
+                        participants: [],
+                        eventId: null,
+                        isGroup: !!c.isGroup,
+                        online: false
+                    });
+                });
+                loadConversations();
+            } catch (err) {
+                console.warn('Falha ao buscar conversas reais', err);
+                loadConversations();
+            }
         }
 
         // Selecionar conversa
@@ -1438,36 +1465,41 @@
             return `dm:${a}-${b}`;
         }
 
-        function createDMConversation(user) {
+        async function createDMConversation(user) {
             if (!currentUser?._id) {
                 // currentUser obtido via /auth/profile; fallback se não houver
                 currentUser = { _id: 'me', name: currentUser?.name || 'Você' };
             }
-            const convId = dmConversationIdFor(currentUser._id, user._id);
-            const existing = conversationsData.find(c => String(c.id) === String(convId));
-            if (existing) {
-                selectConversation(existing.id);
+            // Solicitar ao backend a criação/garantia da DM
+            try {
+                const res = await api.post('/chat/conversations/dm', { userId: user._id }, { auth: true });
+                if (!res.ok) throw new Error('Falha ao criar DM');
+                const data = await res.json();
+                const conv = data.conversation;
+                // Atualizar lista e abrir
+                const existing = conversationsData.find(c => String(c.id) === String(conv._id));
+                if (!existing) {
+                    conversationsData.unshift({
+                        id: conv._id,
+                        name: conv.name,
+                        lastMessage: 'Conversa iniciada',
+                        time: 'Agora',
+                        unread: 0,
+                        participants: [],
+                        eventId: null,
+                        isGroup: false,
+                        online: true
+                    });
+                }
+                messagesData[conv._id] = messagesData[conv._id] || [];
+                loadConversations();
+                selectConversation(conv._id);
                 closeModal();
-                return;
+                showToast('Conversa com usuário criada!');
+            } catch (err) {
+                console.error('Falha ao criar DM', err);
+                showToast('Erro ao criar conversa');
             }
-            const newConversation = {
-                id: convId,
-                name: user.name || user.email || 'Usuário',
-                lastMessage: 'Conversa iniciada',
-                time: 'Agora',
-                unread: 0,
-                participants: [currentUser?.name || 'Você', user.name || user.email || 'Usuário'],
-                eventId: null,
-                isGroup: false,
-                lastSeen: '',
-                online: true
-            };
-            conversationsData.unshift(newConversation);
-            messagesData[convId] = messagesData[convId] || [];
-            loadConversations();
-            selectConversation(convId);
-            closeModal();
-            showToast('Conversa com usuário criada!');
         }
 
         // Criar nova conversa
@@ -1552,7 +1584,7 @@
         // Inicializar tudo
         document.addEventListener('DOMContentLoaded', async () => {
             await loadUserInfo();
-            loadConversations();
+            await fetchRealConversations();
             // Conectar Socket.IO
             try {
                 const base = (typeof window.API_BASE_URL !== 'undefined' && window.API_BASE_URL) ? window.API_BASE_URL : '';

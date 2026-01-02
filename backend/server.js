@@ -8,6 +8,7 @@ const connectDB = require('./config/database');
 const authRoutes = require('./routes/auth');
 const eventsRoutes = require('./routes/events');
 const usersRoutes = require('./routes/users');
+const chatRoutes = require('./routes/chat');
 const User = require('./models/User');
 const ChatMessage = require('./models/ChatMessage');
 const Conversation = require('./models/Conversation');
@@ -34,6 +35,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Rota de teste
 app.get('/', (req, res) => {
