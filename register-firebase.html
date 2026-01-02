@@ -119,8 +119,9 @@
                     const data = await res.json();
                     if (res.ok) {
                         api.token.set(data.token);
+                        const verified = data?.user?.isVerified === true;
                         showMessage('✅ Conta criada com sucesso! Redirecionando...', 'success');
-                        setTimeout(() => { window.location.href = 'pages/dashboard.html'; }, 1200);
+                        setTimeout(() => { window.location.href = verified ? 'pages/dashboard.html' : 'pages/verify.html'; }, 1200);
                     } else {
                         showMessage('❌ ' + (data.error || 'Erro ao criar conta'), 'error');
                         btn.disabled = false; btnText.textContent = 'Criar conta'; btnLoading.style.display = 'none';

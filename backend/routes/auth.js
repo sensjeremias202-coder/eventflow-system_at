@@ -85,7 +85,8 @@ router.post('/login', async (req, res) => {
                 avatar: user.avatar,
                 eventsCount: user.eventsCount,
                 participantsCount: user.participantsCount,
-                successRate: user.successRate
+                successRate: user.successRate,
+                isVerified: user.isVerified === true
             },
             token
         });

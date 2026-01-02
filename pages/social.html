@@ -20,6 +20,9 @@
     .post .author { font-weight:600; }
     .post .meta { color:#777; font-size:12px; }
     .post img { max-width:100%; border-radius:8px; margin-top:8px; }
+    .post-actions { display:flex; gap:12px; align-items:center; margin-top:8px; }
+    .comments { margin-top:8px; border-top:1px solid #eee; padding-top:8px; }
+    .comment { font-size:14px; margin-bottom:6px; }
   </style>
 </head>
 <body>
@@ -64,8 +67,35 @@
             <div class="meta">${new Date(p.createdAt).toLocaleString('pt-BR')}</div>
             <div class="content">${escapeHTML(p.content || '')}</div>
             ${p.mediaUrl ? `<img src="${p.mediaUrl}" alt="Post image">` : ''}
+            <div class="post-actions">
+              <button class="btn btn-secondary" data-like="${p._id}"><i class="fas fa-heart"></i> ${Array.isArray(p.likes)?p.likes.length:0}</button>
+            </div>
+            <div class="comments" id="comments-${p._id}">
+              ${(Array.isArray(p.comments)?p.comments:[]).map(c => `<div class="comment"><strong>${escapeHTML(c.userName||'')}</strong>: ${escapeHTML(c.text||'')}</div>`).join('')}
+              <div style="display:flex;gap:8px;margin-top:6px">
+                <input type="text" placeholder="Comentar..." style="flex:1" data-comment-input="${p._id}">
+                <button class="btn btn-primary" data-comment="${p._id}"><i class="fas fa-comment"></i> Comentar</button>
+              </div>
+            </div>
           </div>
         `).join('');
+
+        // Binds
+        document.querySelectorAll('[data-like]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-like');
+            try { const res = await api.post(`/social/posts/${id}/like`, {}, { auth: true }); const data = await res.json(); btn.innerHTML = `<i class=\"fas fa-heart\"></i> ${data.count||0}`; } catch(e){}
+          });
+        });
+        document.querySelectorAll('[data-comment]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-comment');
+            const input = document.querySelector(`[data-comment-input='${id}']`);
+            const text = (input?.value||'').trim();
+            if (!text) return;
+            try { const res = await api.post(`/social/posts/${id}/comments`, { text }, { auth: true }); const data = await res.json(); const list = document.getElementById(`comments-${id}`); if (data.comments) { list.innerHTML = data.comments.map(c => `<div class=\"comment\"><strong>${escapeHTML(c.userName||'')}</strong>: ${escapeHTML(c.text||'')}</div>`).join('') + list.querySelector('div[style]')?.outerHTML; input.value=''; } } catch(e){}
+          });
+        });
       } catch(err){ console.error('Falha ao carregar feed', err); }
     }
 

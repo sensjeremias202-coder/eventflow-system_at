@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verificar Conta - Eventflow</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="../styles.css">
+  <script src="../config.js"></script>
+  <script src="../api.js"></script>
+  <style>
+    .verify-container { max-width: 520px; margin: 10vh auto; background:#fff; border-radius:16px; box-shadow:0 12px 32px rgba(0,0,0,.12); padding:24px; }
+    .verify-header { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+    .methods { display:flex; gap:8px; margin: 12px 0; }
+    .methods button { padding:8px 12px; border:1px solid #ddd; border-radius:8px; background:#f9f9f9; cursor:pointer }
+    .code-input { width:100%; padding:12px; border:2px solid #ddd; border-radius:8px; font-size:16px; letter-spacing:4px; text-align:center; }
+    .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+  </style>
+</head>
+<body>
+  <script> if (!localStorage.getItem('token')) { window.location.href = '../login-firebase.html'; } </script>
+  <div class="verify-container">
+    <div class="verify-header">
+      <i class="fas fa-shield-alt"></i>
+      <h2 style="margin:0">Verifique sua conta</h2>
+    </div>
+    <p>Escolha um método e solicite seu código de verificação. Em seguida, insira o código para confirmar sua conta.</p>
+
+    <div class="methods">
+      <button id="methodEmail"><i class="fas fa-envelope"></i> Email</button>
+      <button id="methodPhone" disabled><i class="fas fa-sms"></i> SMS (em breve)</button>
+    </div>
+
+    <div id="requestStatus" style="color:#2e5051;margin-bottom:8px"></div>
+
+    <input type="text" id="code" class="code-input" placeholder="000000" maxlength="6" />
+
+    <div class="actions">
+      <button class="btn btn-secondary" id="resendBtn"><i class="fas fa-redo"></i> Reenviar código</button>
+      <button class="btn btn-primary" id="confirmBtn"><i class="fas fa-check"></i> Confirmar</button>
+    </div>
+
+    <div style="margin-top:12px">
+      <a href="../index.html" class="btn btn-secondary"><i class="fas fa-home"></i> Início</a>
+    </div>
+  </div>
+
+  <script>
+    async function requestCode(method){
+      try {
+        const res = await api.post('/auth/request-verification', { method }, { auth: true });
+        const data = res.ok ? await res.json() : { error: 'Falha ao solicitar' };
+        document.getElementById('requestStatus').textContent = res.ok ? 'Código enviado. Verifique seu email.' : (data.error||'Erro');
+      } catch(err){ document.getElementById('requestStatus').textContent = 'Erro ao solicitar código'; }
+    }
+    async function confirm(){
+      const code = document.getElementById('code').value.trim();
+      if (!code) { alert('Informe o código'); return; }
+      try {
+        const res = await api.post('/auth/verify', { code }, { auth: true });
+        const data = await res.json().catch(()=>({}));
+        if (res.ok) { alert('Conta verificada!'); window.location.href = 'dashboard.html'; }
+        else { alert(data.error || 'Código inválido'); }
+      } catch(err){ alert('Erro ao confirmar'); }
+    }
+    document.getElementById('methodEmail').onclick = () => requestCode('email');
+    document.getElementById('resendBtn').onclick = () => requestCode('email');
+    document.getElementById('confirmBtn').onclick = confirm;
+
+    // Solicita automaticamente ao abrir
+    requestCode('email');
+  </script>
+</body>
+</html>

@@ -23,6 +23,7 @@ if (useMemory) {
     }
     static async create(obj){ const p = new Post(obj); return p.save(); }
     static async find(){ return posts.map(p => new Post(p)).sort((a,b) => b.createdAt - a.createdAt); }
+    static async findById(id){ const p = posts.find(x => String(x._id) === String(id)); return p ? new Post(p) : null; }
   }
   module.exports = Post; return;
 }
