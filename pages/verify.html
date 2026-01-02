@@ -24,15 +24,13 @@
       <i class="fas fa-shield-alt"></i>
       <h2 style="margin:0">Verifique sua conta</h2>
     </div>
-    <p>Escolha um método e solicite seu código de verificação. Em seguida, insira o código para confirmar sua conta.</p>
+    <p>Receba seu código de verificação via WhatsApp e confirme sua conta.</p>
 
     <div class="methods">
-      <button id="methodEmail"><i class="fas fa-envelope"></i> Email</button>
-      <button id="methodPhone"><i class="fas fa-sms"></i> SMS</button>
       <button id="methodWhatsApp"><i class="fab fa-whatsapp"></i> WhatsApp</button>
     </div>
 
-    <div class="form-group" id="phoneGroup" style="display:none;margin-bottom:8px">
+    <div class="form-group" id="phoneGroup" style="display:block;margin-bottom:8px">
       <label for="phone"><i class="fas fa-phone"></i> Telefone (com DDI/DDD):</label>
       <input type="tel" id="phone" placeholder="+55DDDNUMERO" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:8px" />
     </div>
@@ -78,7 +76,7 @@
   </div>
 
   <script>
-    let currentMethod = 'email';
+    let currentMethod = 'whatsapp';
     async function requestCode(method){
       try {
         currentMethod = method;
@@ -86,7 +84,7 @@
         const body = (method === 'phone' || method === 'whatsapp') ? { method, phone } : { method };
         const res = await api.post('/auth/request-verification', body, { auth: true });
         const data = res.ok ? await res.json() : { error: 'Falha ao solicitar' };
-        const msg = method === 'email' ? 'Código enviado. Verifique seu email.' : (method === 'phone' ? 'Código enviado por SMS.' : 'Código enviado por WhatsApp.');
+        const msg = 'Código enviado por WhatsApp.';
         document.getElementById('requestStatus').textContent = res.ok ? msg : (data.error||'Erro');
         // Se for WhatsApp e telefone informado, exibe QR para abrir conversa
         const qrSection = document.getElementById('qrSection');
@@ -113,8 +111,6 @@
         else { alert(data.error || 'Código inválido'); }
       } catch(err){ alert('Erro ao confirmar'); }
     }
-    document.getElementById('methodEmail').onclick = () => { document.getElementById('phoneGroup').style.display='none'; requestCode('email'); };
-    document.getElementById('methodPhone').onclick = () => { document.getElementById('phoneGroup').style.display='block'; requestCode('phone'); };
     document.getElementById('methodWhatsApp').onclick = () => { document.getElementById('phoneGroup').style.display='block'; requestCode('whatsapp'); };
     document.getElementById('resendBtn').onclick = () => requestCode(currentMethod);
     document.getElementById('confirmBtn').onclick = confirm;
@@ -143,8 +139,7 @@
       } catch (e) { alert('Erro ao habilitar 2FA'); }
     };
 
-    // Solicita automaticamente ao abrir
-    requestCode('email');
+    // Dica: informe seu telefone e clique em "Reenviar código" para receber por WhatsApp.
   </script>
 </body>
 </html>
