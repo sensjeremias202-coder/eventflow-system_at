@@ -1572,6 +1572,8 @@
 
         // Inicializar tudo
         document.addEventListener('DOMContentLoaded', async () => {
+            // Verificação obrigatória
+            try { const ok = await api.requireVerified(); if (!ok) return; } catch(_) { return; }
             await loadUserInfo();
             await fetchRealConversations();
             // Conectar Socket.IO

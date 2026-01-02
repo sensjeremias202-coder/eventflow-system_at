@@ -997,6 +997,10 @@
                     if (p.ok) {
                         const data = await p.json();
                         const profile = data.user || {};
+                        if (profile.isVerified !== true) {
+                            window.location.href = 'verify.html';
+                            return;
+                        }
                         const name = profile.name || profile.email || 'Usuário';
                         const role = profile.role || 'Usuário';
                         document.querySelectorAll('.user-name').forEach(el => el.textContent = name);

@@ -26,7 +26,10 @@
   </style>
 </head>
 <body>
-  <script> if (!localStorage.getItem('token')) { window.location.href = '../login-firebase.html'; } </script>
+  <script>
+    if (!localStorage.getItem('token')) { window.location.href = '../login-firebase.html'; }
+    (async () => { try { const ok = await api.requireVerified(); if (!ok) return; } catch(_) { return; } })();
+  </script>
   <div class="social-container">
     <div class="social-header">
       <h2><i class="fas fa-users"></i> Rede Social</h2>

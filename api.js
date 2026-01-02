@@ -29,6 +29,24 @@
     return res;
   }
 
+  async function requireVerified(){
+    try {
+      const res = await apiFetch('/auth/profile', { method: 'GET' }, { auth: true });
+      if (!res.ok) {
+        return false;
+      }
+      const data = await res.json();
+      const user = data && data.user ? data.user : {};
+      if (user.isVerified !== true) {
+        try { location.href = 'verify.html'; } catch(_) {}
+        return false;
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   const api = {
     url: BASE_URL,
     origin: (typeof location !== 'undefined' ? location.origin : ''),
@@ -39,6 +57,7 @@
     put: (path, body, { auth = false } = {}) => apiFetch(path, { method: 'PUT', body: JSON.stringify(body) }, { auth }),
     del: (path, { auth = false } = {}) => apiFetch(path, { method: 'DELETE' }, { auth }),
     requireAuth: () => { if (!getToken()) location.href = 'login-firebase.html'; },
+    requireVerified,
     health: async () => {
       try {
         const res = await fetch(`${BASE_URL}/health`);

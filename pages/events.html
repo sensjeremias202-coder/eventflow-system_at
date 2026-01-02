@@ -1133,7 +1133,11 @@
         // Inicializar
         document.addEventListener('DOMContentLoaded', () => {
             try { api.requireAuth(); } catch(_) {}
-            (async () => { await syncEventsFromBackend(); loadEvents(); })();
+            (async () => {
+                try { const ok = await api.requireVerified(); if (!ok) return; } catch(_) { return; }
+                await syncEventsFromBackend();
+                loadEvents();
+            })();
 
             // Configurar filtros
             document.getElementById('filterStatus')?.addEventListener('change', filterEvents);

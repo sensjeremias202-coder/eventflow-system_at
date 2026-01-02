@@ -524,6 +524,8 @@
     <script>
     document.addEventListener('DOMContentLoaded', async () => {
         try {
+            // Bloqueia acesso se não verificado
+            try { const ok = await api.requireVerified(); if (!ok) return; } catch(_) { return; }
             const res = await api.get('/auth/profile', { auth: true });
             if (res.ok) {
                 const data = await res.json();

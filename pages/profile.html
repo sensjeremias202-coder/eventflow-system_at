@@ -890,6 +890,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         window.location.href = '../login-firebase.html';
         return;
     }
+    try { const ok = await api.requireVerified(); if (!ok) return; } catch(_) { return; }
     await loadUserData();
     setupProfileFunctionality();
     updateSidebar();
