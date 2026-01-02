@@ -9,6 +9,8 @@ const authRoutes = require('./routes/auth');
 const eventsRoutes = require('./routes/events');
 const usersRoutes = require('./routes/users');
 const User = require('./models/User');
+const ChatMessage = require('./models/ChatMessage');
+const presence = require('./services/presence');
 
 const app = express();
 const server = http.createServer(app);
@@ -83,6 +85,7 @@ io.use(async (socket, next) => {
         const user = await User.findOne({ _id: decoded.userId });
         if (!user) return next(new Error('invalid_user'));
         socket.user = user;
+        presence.markOnline(user._id);
         return next();
     } catch (e) {
         return next(new Error('invalid_token'));
@@ -90,12 +93,23 @@ io.use(async (socket, next) => {
 });
 
 io.on('connection', (socket) => {
+    // Broadcast presença inicial
+    io.emit('presence:update', { userId: String(socket.user._id), online: true, lastSeen: null });
+
     // Entrar em uma conversa/sala
     socket.on('chat:join', ({ conversationId }) => {
         if (!conversationId) return;
         socket.join(String(conversationId));
-        const history = chatStore.messages[String(conversationId)] || [];
-        socket.emit('chat:history', { conversationId, messages: history });
+        // Histórico persistente (fallback memória)
+        (async () => {
+            let history = [];
+            try {
+                history = await ChatMessage.find({ conversationId, page: 1, limit: 100 });
+            } catch (e) {
+                history = chatStore.messages[String(conversationId)] || [];
+            }
+            socket.emit('chat:history', { conversationId, messages: history });
+        })();
     });
 
     // Indicador de digitação
@@ -117,7 +131,22 @@ io.on('connection', (socket) => {
         };
         chatStore.messages[String(conversationId)] = chatStore.messages[String(conversationId)] || [];
         chatStore.messages[String(conversationId)].push(msg);
+        // Persistência
+        const cm = new ChatMessage({
+            conversationId: String(conversationId),
+            senderId: String(socket.user._id),
+            senderName: msg.senderName,
+            text: msg.text,
+            time: msg.time,
+            status: msg.status
+        });
+        cm.save().catch(()=>{});
         io.to(String(conversationId)).emit('chat:message', { conversationId, message: msg });
+    });
+
+    socket.on('disconnect', () => {
+        presence.markOffline(socket.user._id);
+        io.emit('presence:update', { userId: String(socket.user._id), online: false, lastSeen: presence.getLastSeen(socket.user._id) });
     });
 });
 

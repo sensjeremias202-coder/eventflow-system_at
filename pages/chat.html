@@ -1342,33 +1342,39 @@
         }
 
         // Carregar usuários para nova conversa
-        async function loadUsersForNewChat() {
+        let usersPage = 1;
+        const usersLimit = 20;
+        async function loadUsersForNewChat(reset = true) {
             const list = document.getElementById('eventList');
-            list.innerHTML = `
+            if (reset) {
+              usersPage = 1;
+              list.innerHTML = `
                 <div style="padding: 20px; text-align: center;">
                     <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: var(--whatsapp-icon);"></i>
                     <p style="margin-top: 10px; color: #667781;">Carregando usuários...</p>
                 </div>
-            `;
+              `;
+            }
             try {
-                const res = await api.get('/users', { auth: true });
+                const res = await api.get(`/users?page=${usersPage}&limit=${usersLimit}`, { auth: true });
                 const data = res.ok ? await res.json() : { users: [] };
                 const users = Array.isArray(data.users) ? data.users : [];
                 if (users.length === 0) {
-                    list.innerHTML = '<p style="padding:16px;color:#667781;">Nenhum usuário encontrado.</p>';
+                    if (reset) list.innerHTML = '<p style="padding:16px;color:#667781;">Nenhum usuário encontrado.</p>';
                     return;
                 }
-                list.innerHTML = users.map(u => `
+                const items = users.map(u => `
                     <div class="conversation-item" data-user-id="${u._id}" style="cursor: pointer;">
                         <div class="conversation-avatar">
                             <div class="conversation-avatar-img">${escapeHTML(String(u.name || u.email || '?')).charAt(0)}</div>
+                            ${u.online ? '<div class="online-status"></div>' : ''}
                         </div>
                         <div class="conversation-info">
                             <div class="conversation-header">
                                 <div class="conversation-name">${escapeHTML(String(u.name || u.email || 'Usuário'))}</div>
                             </div>
                             <div class="conversation-last">
-                                <div class="conversation-preview">${escapeHTML(String(u.email || ''))}</div>
+                                <div class="conversation-preview">${escapeHTML(String(u.email || ''))}${u.online ? ' • Online' : (u.lastSeen ? ' • Último acesso ' + new Date(u.lastSeen).toLocaleString('pt-BR') : '')}</div>
                             </div>
                         </div>
                         <button class="chat-action-btn" style="background: var(--whatsapp-green); color: white;">
@@ -1376,6 +1382,8 @@
                         </button>
                     </div>
                 `).join('');
+
+                if (reset) list.innerHTML = items; else list.insertAdjacentHTML('beforeend', items);
 
                 list.querySelectorAll('.conversation-item').forEach(item => {
                     item.addEventListener('click', (e) => {
@@ -1392,6 +1400,19 @@
                         if (user) createDMConversation(user);
                     });
                 });
+
+                // Carregar mais
+                const loadMoreId = 'loadMoreUsersBtn';
+                let loadMore = document.getElementById(loadMoreId);
+                if (!loadMore) {
+                  loadMore = document.createElement('button');
+                  loadMore.id = loadMoreId;
+                  loadMore.className = 'chat-action-btn';
+                  loadMore.style.cssText = 'background:#e9edef;border-radius:6px;width:100%;height:auto;padding:8px 10px;color:#111b21;font-size:14px;margin-top:8px;';
+                  loadMore.textContent = 'Carregar mais';
+                  list.appendChild(loadMore);
+                }
+                loadMore.onclick = () => { usersPage += 1; loadUsersForNewChat(false); };
             } catch (err) {
                 console.error('Falha ao carregar usuários', err);
                 list.innerHTML = '<p style="padding:16px;color:#a33;">Erro ao carregar usuários.</p>';
@@ -1561,6 +1582,24 @@
                 window.socket.on('chat:typing', ({ conversationId }) => {
                     if (String(conversationId) === String(currentConversationId)) {
                         showTypingIndicator();
+                    }
+                });
+
+                // Presença
+                window.socket.on('presence:update', ({ userId, online, lastSeen }) => {
+                    // Atualiza badges na lista de usuários
+                    document.querySelectorAll(`.conversation-item[data-user-id="${userId}"] .online-status`).forEach(el => el.remove());
+                    const item = document.querySelector(`.conversation-item[data-user-id="${userId}"] .conversation-avatar`);
+                    if (item && online) {
+                        const dot = document.createElement('div');
+                        dot.className = 'online-status';
+                        item.appendChild(dot);
+                    }
+                    // Atualiza header de conversa se for DM com esse usuário
+                    const dmPrefix = 'dm:';
+                    const isDmWithUser = String(currentConversationId || '').startsWith(dmPrefix) && String(currentConversationId).includes(String(userId));
+                    if (isDmWithUser) {
+                        document.getElementById('chatStatus').textContent = online ? 'Online' : (lastSeen ? 'Última vez ' + new Date(lastSeen).toLocaleString('pt-BR') : 'Offline');
                     }
                 });
             } catch (err) {
