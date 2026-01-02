@@ -1539,6 +1539,27 @@
             }, 3000);
         }
 
+        // Voltar para lista de conversas
+        function backToList() {
+            const sidebar = document.getElementById('sidebar');
+            const chatHeader = document.getElementById('chatHeader');
+            const noChat = document.getElementById('noChatSelected');
+            const inputContainer = document.getElementById('messageInputContainer');
+            const conversationsList = document.getElementById('conversationsList');
+
+            // Mostrar a sidebar (especialmente no mobile)
+            sidebar.classList.remove('hidden');
+
+            // Limpar seleção visual
+            conversationsList.querySelectorAll('.conversation-item').forEach(i => i.classList.remove('active'));
+
+            // Resetar estado do chat
+            currentConversationId = null;
+            if (chatHeader) chatHeader.style.display = 'none';
+            if (noChat) noChat.style.display = 'flex';
+            if (inputContainer) inputContainer.style.display = 'none';
+        }
+
         // Inicializar tudo
         document.addEventListener('DOMContentLoaded', async () => {
             await loadUserInfo();
@@ -1648,6 +1669,9 @@
                 showNewChatModal();
                 loadUsersForNewChat();
             });
+            // Botão voltar
+            const backBtn = document.getElementById('backToListBtn');
+            if (backBtn) backBtn.addEventListener('click', backToList);
             // Botão voltar
             document.getElementById('backToListBtn').addEventListener('click', () => {
                 document.getElementById('sidebar').classList.remove('hidden');
