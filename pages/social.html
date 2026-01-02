@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eventflow - Rede Social</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <link rel="stylesheet" href="../styles.css">
+  <script src="../config.js"></script>
+  <script src="../api.js"></script>
+  <style>
+    .social-container { max-width: 860px; margin: 24px auto; padding: 0 16px; }
+    .social-header { display:flex; align-items:center; justify-content:space-between; }
+    .tabs { display:flex; gap:8px; margin:16px 0; }
+    .tab { padding:8px 12px; border:1px solid #ddd; border-radius:8px; cursor:pointer; }
+    .tab.active { background:#2e5051; color:#fff; border-color:#2e5051; }
+    .post-editor { background:#fff; border:1px solid #eee; border-radius:12px; padding:12px; margin-bottom:16px; }
+    .post-editor textarea { width:100%; min-height:80px; }
+    .post { background:#fff; border:1px solid #eee; border-radius:12px; padding:12px; margin-bottom:12px; }
+    .post .author { font-weight:600; }
+    .post .meta { color:#777; font-size:12px; }
+    .post img { max-width:100%; border-radius:8px; margin-top:8px; }
+  </style>
+</head>
+<body>
+  <script> if (!localStorage.getItem('token')) { window.location.href = '../login-firebase.html'; } </script>
+  <div class="social-container">
+    <div class="social-header">
+      <h2><i class="fas fa-users"></i> Rede Social</h2>
+      <a href="../index.html" class="btn btn-secondary"><i class="fas fa-home"></i> Início</a>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="feed">Feed</div>
+      <div class="tab" data-tab="store">Store</div>
+      <div class="tab" data-tab="mensagens">Mensagens</div>
+      <div class="tab" data-tab="reels">Reels</div>
+    </div>
+
+    <div class="post-editor">
+      <h4>Novo post</h4>
+      <textarea id="postText" placeholder="Compartilhe um evento, ideia ou novidade..."></textarea>
+      <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+        <input type="file" id="postMedia" accept="image/*" />
+        <button class="btn btn-primary" id="publishBtn"><i class="fas fa-paper-plane"></i> Publicar</button>
+      </div>
+    </div>
+
+    <div id="feed"></div>
+  </div>
+
+  <script>
+    function escapeHTML(str){ return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    async function loadFeed(){
+      try {
+        const res = await api.get('/social/posts', { auth: true });
+        const data = res.ok ? await res.json() : { items: [] };
+        const items = Array.isArray(data.items) ? data.items : [];
+        const feed = document.getElementById('feed');
+        if (items.length === 0) { feed.innerHTML = '<p style="color:#777">Nenhum post ainda.</p>'; return; }
+        feed.innerHTML = items.map(p => `
+          <div class="post">
+            <div class="author">${escapeHTML(p.userName || 'Usuário')}</div>
+            <div class="meta">${new Date(p.createdAt).toLocaleString('pt-BR')}</div>
+            <div class="content">${escapeHTML(p.content || '')}</div>
+            ${p.mediaUrl ? `<img src="${p.mediaUrl}" alt="Post image">` : ''}
+          </div>
+        `).join('');
+      } catch(err){ console.error('Falha ao carregar feed', err); }
+    }
+
+    document.getElementById('publishBtn').addEventListener('click', async () => {
+      const txt = document.getElementById('postText').value.trim();
+      const file = document.getElementById('postMedia').files[0];
+      let mediaUrl = null;
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          mediaUrl = reader.result;
+          await publish(txt, mediaUrl);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        await publish(txt, null);
+      }
+    });
+
+    async function publish(content, mediaUrl){
+      try {
+        const res = await api.post('/social/posts', { content, mediaUrl }, { auth: true });
+        if (res.ok) { document.getElementById('postText').value=''; document.getElementById('postMedia').value=''; loadFeed(); }
+      } catch(err){ console.error('Falha ao publicar', err); }
+    }
+
+    document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', (e) => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      // Apenas UI por enquanto
+    }));
+
+    loadFeed();
+  </script>
+</body>
+</html>

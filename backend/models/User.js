@@ -20,6 +20,10 @@ if (useMemory) {
             this.location = obj.location || '';
             this.bio = obj.bio || '';
             this.avatar = obj.avatar || null;
+            this.isVerified = obj.isVerified === true;
+            this.verificationCodeHash = obj.verificationCodeHash || null;
+            this.verificationMethod = obj.verificationMethod || null; // 'email' | 'phone'
+            this.verificationExpires = obj.verificationExpires || null;
             this.emailNotifications = obj.emailNotifications ?? true;
             this.pushNotifications = obj.pushNotifications ?? true;
             this.eventReminders = obj.eventReminders ?? true;
@@ -57,6 +61,15 @@ if (useMemory) {
             this.resetPasswordToken = hashed;
             this.resetPasswordExpires = Date.now() + 60 * 60 * 1000;
             return rawToken;
+        }
+
+        generateVerificationCode(method = 'email') {
+            const code = Math.floor(100000 + Math.random() * 900000).toString();
+            const hashed = crypto.createHash('sha256').update(code).digest('hex');
+            this.verificationCodeHash = hashed;
+            this.verificationMethod = method;
+            this.verificationExpires = Date.now() + 10 * 60 * 1000; // 10 min
+            return code;
         }
 
         static async findOne(query) {
@@ -144,6 +157,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: null
     },
+    isVerified: { type: Boolean, default: false },
+    verificationCodeHash: { type: String, default: null },
+    verificationMethod: { type: String, default: null },
+    verificationExpires: { type: Date, default: null },
     emailNotifications: {
         type: Boolean,
         default: true

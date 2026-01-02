@@ -9,10 +9,12 @@ const authRoutes = require('./routes/auth');
 const eventsRoutes = require('./routes/events');
 const usersRoutes = require('./routes/users');
 const chatRoutes = require('./routes/chat');
+const verifiedMiddleware = require('./middleware/verifiedMiddleware');
 const User = require('./models/User');
 const ChatMessage = require('./models/ChatMessage');
 const Conversation = require('./models/Conversation');
 const presence = require('./services/presence');
+const socialRoutes = require('./routes/social');
 
 const app = express();
 const server = http.createServer(app);
@@ -33,9 +35,11 @@ app.use(express.urlencoded({ extended: true }));
 
 // Rotas
 app.use('/api/auth', authRoutes);
-app.use('/api/events', eventsRoutes);
-app.use('/api/users', usersRoutes);
-app.use('/api/chat', chatRoutes);
+app.use('/api/events', verifiedMiddleware, eventsRoutes);
+app.use('/api/users', verifiedMiddleware, usersRoutes);
+app.use('/api/chat', verifiedMiddleware, chatRoutes);
+app.use('/api/social', socialRoutes);
+// Social rotas (adicionadas abaixo)
 
 // Rota de teste
 app.get('/', (req, res) => {

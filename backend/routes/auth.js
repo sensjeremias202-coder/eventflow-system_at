@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/authMiddleware');
 const { sendMail } = require('../config/mailer');
+const crypto = require('crypto');
 
 // Registro de usuário
 router.post('/register', async (req, res) => {
@@ -267,6 +268,56 @@ router.post('/reset-password', async (req, res) => {
         return res.json({ message: 'Senha redefinida com sucesso' });
     } catch (error) {
         console.error('Erro em reset-password:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
+
+// Solicitar verificação (email/telefone)
+router.post('/request-verification', authMiddleware, async (req, res) => {
+    try {
+        const method = (req.body.method || 'email').toLowerCase();
+        if (!['email','phone'].includes(method)) return res.status(400).json({ error: 'Método inválido' });
+        const code = req.user.generateVerificationCode(method);
+        await req.user.save();
+
+        if (method === 'email') {
+            const html = `
+                <p>Olá, ${req.user.name || 'usuário'}</p>
+                <p>Seu código de verificação é:</p>
+                <h2 style="letter-spacing:4px">${code}</h2>
+                <p>Este código expira em 10 minutos.</p>
+            `;
+            await sendMail({ to: req.user.email, subject: 'Eventflow - Verificação de conta', html });
+        } else {
+            // Para telefone/SMS, integrar provedor (ex.: Twilio). Aqui apenas simulamos sucesso.
+        }
+
+        res.json({ message: 'Código de verificação enviado' });
+    } catch (error) {
+        console.error('Erro em request-verification:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
+
+// Confirmar verificação
+router.post('/verify', authMiddleware, async (req, res) => {
+    try {
+        const { code } = req.body;
+        if (!code) return res.status(400).json({ error: 'Código é obrigatório' });
+        const hashed = crypto.createHash('sha256').update(String(code)).digest('hex');
+        if (!req.user.verificationCodeHash || req.user.verificationCodeHash !== hashed) {
+            return res.status(400).json({ error: 'Código inválido' });
+        }
+        if (req.user.verificationExpires && Date.now() > req.user.verificationExpires) {
+            return res.status(400).json({ error: 'Código expirado' });
+        }
+        req.user.isVerified = true;
+        req.user.verificationCodeHash = null;
+        req.user.verificationExpires = null;
+        await req.user.save();
+        res.json({ message: 'Conta verificada com sucesso' });
+    } catch (error) {
+        console.error('Erro em verify:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
