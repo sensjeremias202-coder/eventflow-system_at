@@ -82,6 +82,15 @@ if (useMemory) {
             const u = users.find(u => String(u._id) === String(id));
             return u ? new User(u) : null;
         }
+
+        static async find(query = {}) {
+            let list = [...users];
+            if (query && query.q) {
+                const term = String(query.q).toLowerCase();
+                list = list.filter(u => (u.name || '').toLowerCase().includes(term) || (u.email || '').includes(term));
+            }
+            return list.map(u => new User(u));
+        }
     }
 
     module.exports = User;

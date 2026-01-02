@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const connectDB = require('./config/database');
 const authRoutes = require('./routes/auth');
 const eventsRoutes = require('./routes/events');
+const usersRoutes = require('./routes/users');
 const User = require('./models/User');
 
 const app = express();
@@ -29,6 +30,7 @@ app.use(express.urlencoded({ extended: true }));
 // Rotas
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventsRoutes);
+app.use('/api/users', usersRoutes);
 
 // Rota de teste
 app.get('/', (req, res) => {

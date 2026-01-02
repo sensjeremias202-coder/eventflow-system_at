@@ -810,8 +810,12 @@
                 </div>
             </div>
             <div class="messages-container" style="background: white; padding: 0;">
+                <div style="display:flex; gap:8px; padding:10px 16px; border-bottom:1px solid #eee;">
+                    <button class="chat-action-btn" id="tabUsersBtn" title="Usuários" style="background:#e9edef;border-radius:6px;width:auto;height:auto;padding:6px 10px;color:#111b21;font-size:14px;">Usuários</button>
+                    <button class="chat-action-btn" id="tabEventsBtn" title="Eventos" style="background:#e9edef;border-radius:6px;width:auto;height:auto;padding:6px 10px;color:#111b21;font-size:14px;">Eventos</button>
+                </div>
                 <div class="event-list" id="eventList" style="padding: 16px;">
-                    <!-- Eventos serão carregados aqui -->
+                    <!-- Lista dinâmica: usuários ou eventos -->
                 </div>
             </div>
         </div>
@@ -1337,6 +1341,100 @@
             });
         }
 
+        // Carregar usuários para nova conversa
+        async function loadUsersForNewChat() {
+            const list = document.getElementById('eventList');
+            list.innerHTML = `
+                <div style="padding: 20px; text-align: center;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: var(--whatsapp-icon);"></i>
+                    <p style="margin-top: 10px; color: #667781;">Carregando usuários...</p>
+                </div>
+            `;
+            try {
+                const res = await api.get('/users', { auth: true });
+                const data = res.ok ? await res.json() : { users: [] };
+                const users = Array.isArray(data.users) ? data.users : [];
+                if (users.length === 0) {
+                    list.innerHTML = '<p style="padding:16px;color:#667781;">Nenhum usuário encontrado.</p>';
+                    return;
+                }
+                list.innerHTML = users.map(u => `
+                    <div class="conversation-item" data-user-id="${u._id}" style="cursor: pointer;">
+                        <div class="conversation-avatar">
+                            <div class="conversation-avatar-img">${escapeHTML(String(u.name || u.email || '?')).charAt(0)}</div>
+                        </div>
+                        <div class="conversation-info">
+                            <div class="conversation-header">
+                                <div class="conversation-name">${escapeHTML(String(u.name || u.email || 'Usuário'))}</div>
+                            </div>
+                            <div class="conversation-last">
+                                <div class="conversation-preview">${escapeHTML(String(u.email || ''))}</div>
+                            </div>
+                        </div>
+                        <button class="chat-action-btn" style="background: var(--whatsapp-green); color: white;">
+                            <i class="fas fa-comment"></i>
+                        </button>
+                    </div>
+                `).join('');
+
+                list.querySelectorAll('.conversation-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        if (!e.target.closest('.chat-action-btn')) {
+                            const uid = item.dataset.userId;
+                            const user = users.find(x => String(x._id) === String(uid));
+                            if (user) createDMConversation(user);
+                        }
+                    });
+                    const btn = item.querySelector('.chat-action-btn');
+                    btn?.addEventListener('click', () => {
+                        const uid = item.dataset.userId;
+                        const user = users.find(x => String(x._id) === String(uid));
+                        if (user) createDMConversation(user);
+                    });
+                });
+            } catch (err) {
+                console.error('Falha ao carregar usuários', err);
+                list.innerHTML = '<p style="padding:16px;color:#a33;">Erro ao carregar usuários.</p>';
+            }
+        }
+
+        function dmConversationIdFor(userAId, userBId) {
+            const [a, b] = [String(userAId), String(userBId)].sort();
+            return `dm:${a}-${b}`;
+        }
+
+        function createDMConversation(user) {
+            if (!currentUser?._id) {
+                // currentUser obtido via /auth/profile; fallback se não houver
+                currentUser = { _id: 'me', name: currentUser?.name || 'Você' };
+            }
+            const convId = dmConversationIdFor(currentUser._id, user._id);
+            const existing = conversationsData.find(c => String(c.id) === String(convId));
+            if (existing) {
+                selectConversation(existing.id);
+                closeModal();
+                return;
+            }
+            const newConversation = {
+                id: convId,
+                name: user.name || user.email || 'Usuário',
+                lastMessage: 'Conversa iniciada',
+                time: 'Agora',
+                unread: 0,
+                participants: [currentUser?.name || 'Você', user.name || user.email || 'Usuário'],
+                eventId: null,
+                isGroup: false,
+                lastSeen: '',
+                online: true
+            };
+            conversationsData.unshift(newConversation);
+            messagesData[convId] = messagesData[convId] || [];
+            loadConversations();
+            selectConversation(convId);
+            closeModal();
+            showToast('Conversa com usuário criada!');
+        }
+
         // Criar nova conversa
         function createNewConversation(eventId) {
             const events = (window.EventflowData?.events || []);
@@ -1470,7 +1568,12 @@
             }
 
             // Event Listeners
-            document.getElementById('newChatBtn').addEventListener('click', showNewChatModal);
+            document.getElementById('newChatBtn').addEventListener('click', () => {
+                showNewChatModal();
+                loadUsersForNewChat();
+            });
+            document.getElementById('tabUsersBtn').addEventListener('click', loadUsersForNewChat);
+            document.getElementById('tabEventsBtn').addEventListener('click', loadEventsForNewChat);
             document.getElementById('modalBackBtn').addEventListener('click', closeModal);
             document.getElementById('sendMessageBtn').addEventListener('click', sendMessage);
 
