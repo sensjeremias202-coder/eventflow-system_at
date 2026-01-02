@@ -31,14 +31,28 @@
 
   const api = {
     url: BASE_URL,
+    origin: (typeof location !== 'undefined' ? location.origin : ''),
     token: { get: getToken, set: setToken, clear: clearToken },
     fetch: apiFetch,
     get: (path, { auth = false } = {}) => apiFetch(path, { method: 'GET' }, { auth }),
     post: (path, body, { auth = false } = {}) => apiFetch(path, { method: 'POST', body: JSON.stringify(body) }, { auth }),
     put: (path, body, { auth = false } = {}) => apiFetch(path, { method: 'PUT', body: JSON.stringify(body) }, { auth }),
     del: (path, { auth = false } = {}) => apiFetch(path, { method: 'DELETE' }, { auth }),
-    requireAuth: () => { if (!getToken()) location.href = 'login-firebase.html'; }
+    requireAuth: () => { if (!getToken()) location.href = 'login-firebase.html'; },
+    health: async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/health`);
+        const data = await res.json();
+        return { ok: res.ok, data };
+      } catch (e) {
+        return { ok: false, error: e && e.message ? e.message : 'Failed to fetch' };
+      }
+    }
   };
+
+  try {
+    console.log('[API] Base:', BASE_URL, 'Origin:', api.origin);
+  } catch (e) {}
 
   window.api = api;
 })();

@@ -126,7 +126,8 @@
                         btn.disabled = false; btnText.textContent = 'Criar conta'; btnLoading.style.display = 'none';
                     }
                 } catch (err) {
-                    showMessage('❌ Erro de conexão com o servidor', 'error');
+                    const msg = (err && err.message) ? 'Erro: ' + err.message : 'Erro de conexão com o servidor';
+                    showMessage('❌ ' + msg, 'error');
                     btn.disabled = false; btnText.textContent = 'Criar conta'; btnLoading.style.display = 'none';
                 }
             });

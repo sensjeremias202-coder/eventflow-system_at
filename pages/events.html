@@ -8,6 +8,23 @@
     <link rel="stylesheet" href="../styles.css">
     <script src="../config.js"></script>
     <script src="../api.js"></script>
+    <!-- Fallback rápido de estilo do modal caso o CSS global não carregue -->
+    <style>
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 2000; }
+        .modal.active { display: flex; }
+        .modal-content { width: 100%; max-width: 720px; background: #fff; border-radius: 16px; box-shadow: 0 5px 20px rgba(0,0,0,0.15); overflow: hidden; }
+        .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #dee2e6; }
+        .modal-body { padding: 20px; }
+        .modal-footer { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 20px; border-top: 1px solid #dee2e6; background: #fafafa; }
+        .modal-close { background: none; border: none; font-size: 24px; line-height: 1; color: #6c757d; cursor: pointer; }
+        .modal-close:hover { color: #2e5051; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #2e5051; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 576px) { .form-row { grid-template-columns: 1fr; } }
+        .form-control { width: 100%; padding: 12px 14px; border: 2px solid #dee2e6; border-radius: 8px; font-size: 14px; background: #fff; }
+        .form-control:focus { outline: none; border-color: #2e5051; box-shadow: 0 0 0 3px rgba(46,80,81,0.1); }
+    </style>
     <style>
         .events-container {
             padding: 30px;
@@ -728,7 +745,7 @@
                 `;
                 
                 document.getElementById('createFirstEventBtn')?.addEventListener('click', () => {
-                    document.getElementById('createEventModal').style.display = 'flex';
+                    document.getElementById('createEventModal').classList.add('active');
                 });
                 
                 return;
@@ -1003,7 +1020,7 @@
             document.getElementById('modalSave').textContent = 'Salvar Alterações';
 
             // Mostrar modal
-            document.getElementById('createEventModal').style.display = 'flex';
+            document.getElementById('createEventModal').classList.add('active');
 
             // Configurar salvamento
             const saveBtn = document.getElementById('modalSave');
@@ -1064,7 +1081,7 @@
                 time: document.getElementById('eventTime').value,
                 location: document.getElementById('eventLocation').value,
                 category: document.getElementById('eventCategory').value,
-                capacity: parseInt(document.getElementById('eventCapacity').value),
+                capacity: (parseInt(document.getElementById('eventCapacity').value, 10) || 50),
                 description: document.getElementById('eventDescription').value,
                 status: 'upcoming',
                 organizer: 'Organizador',
@@ -1072,20 +1089,20 @@
             };
 
             if (eventId) {
-                api.put(`/events/${eventId}`, eventData, { auth: true })
+                                api.put(`/events/${eventId}`, eventData, { auth: true })
                   .then(async res => {
-                    const body = await res.json().catch(() => ({}));
-                    if (!res.ok) throw new Error(body.error || 'Falha ao atualizar evento');
+                                        const body = await res.json().catch(() => ({}));
+                                        if (!res.ok) throw new Error((body.error || res.statusText || 'Falha ao atualizar evento') + ` (HTTP ${res.status})`);
                     await syncEventsFromBackend();
                     window.app?.showToast('Evento atualizado com sucesso!', 'success');
                     loadEvents();
                   })
                   .catch(err => window.app?.showToast(err.message, 'error'));
             } else {
-                api.post('/events', eventData, { auth: true })
+                                api.post('/events', eventData, { auth: true })
                   .then(async res => {
-                    const body = await res.json().catch(() => ({}));
-                    if (!res.ok) throw new Error(body.error || 'Falha ao criar evento');
+                                        const body = await res.json().catch(() => ({}));
+                                        if (!res.ok) throw new Error((body.error || res.statusText || 'Falha ao criar evento') + ` (HTTP ${res.status})`);
                     await syncEventsFromBackend();
                     window.app?.showToast('Evento criado com sucesso!', 'success');
                     loadEvents();
@@ -1094,7 +1111,7 @@
             }
 
             // Fechar modal
-            document.getElementById('createEventModal').style.display = 'none';
+            document.getElementById('createEventModal').classList.remove('active');
             form.reset();
 
             // Recarregar eventos
@@ -1103,6 +1120,7 @@
 
         // Inicializar
         document.addEventListener('DOMContentLoaded', () => {
+            try { api.requireAuth(); } catch(_) {}
             (async () => { await syncEventsFromBackend(); loadEvents(); })();
 
             // Configurar filtros
@@ -1125,17 +1143,17 @@
                 saveBtn.onclick = () => saveEvent();
                 
                 // Mostrar modal
-                document.getElementById('createEventModal').style.display = 'flex';
+                document.getElementById('createEventModal').classList.add('active');
             });
 
             // Fechar modal
             document.getElementById('modalClose')?.addEventListener('click', () => {
-                document.getElementById('createEventModal').style.display = 'none';
+                document.getElementById('createEventModal').classList.remove('active');
                 document.getElementById('eventForm').reset();
             });
 
             document.getElementById('modalCancel')?.addEventListener('click', () => {
-                document.getElementById('createEventModal').style.display = 'none';
+                document.getElementById('createEventModal').classList.remove('active');
                 document.getElementById('eventForm').reset();
             });
 
@@ -1143,7 +1161,7 @@
             window.addEventListener('click', (e) => {
                 const modal = document.getElementById('createEventModal');
                 if (e.target === modal) {
-                    modal.style.display = 'none';
+                    modal.classList.remove('active');
                     document.getElementById('eventForm').reset();
                 }
             });

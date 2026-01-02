@@ -1215,7 +1215,7 @@
                                 api.post('/events', eventData, { auth: true })
                                     .then(async res => {
                                             const body = await res.json().catch(() => ({}));
-                                            if (!res.ok) throw new Error(body.error || 'Falha ao criar evento');
+                                            if (!res.ok) throw new Error((body.error || res.statusText || 'Falha ao criar evento') + ` (HTTP ${res.status})`);
                                             // Fechar modal e recarregar
                                             document.getElementById('eventModal').classList.remove('active');
                                             form.reset();

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Página não encontrada (404) - Eventflow</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .notfound { max-width: 800px; margin: 8vh auto; background: #fff; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: 32px; text-align: center; }
+    .notfound h1 { color: var(--primary-color); margin-bottom: 8px; }
+    .notfound p { color: var(--text-muted); margin: 8px 0; }
+    .notfound .actions { display:flex; gap:12px; justify-content:center; margin-top:20px; flex-wrap:wrap; }
+    .notfound code { background:#f8f9fa; padding:2px 6px; border-radius:6px; }
+  </style>
+</head>
+<body>
+  <div class="notfound">
+    <h1>404 • Arquivo não encontrado</h1>
+    <p>O endereço acessado não existe neste site.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="/eventflow-system_at/">Ir para a página inicial</a>
+      <a class="btn btn-secondary" href="pages/events.html">Abrir listagem de eventos</a>
+    </div>
+    <hr style="margin:24px 0; opacity:0.2">
+    <p>Se você é o dono do site, verifique:</p>
+    <p>• O <code>nome do arquivo</code> respeita maiúsculas/minúsculas da URL</p>
+    <p>• Para a raiz do projeto, existe um <code>index.html</code></p>
+  </div>
+  <script>
+    // Se a URL tiver caminho de branch do GitHub Pages, tentar resolver automaticamente
+    (function(){
+      var base = '/eventflow-system_at/';
+      try {
+        var path = location.pathname || '';
+        // Se for raiz do repo ou já estiver em base, manter
+        if (!path || path === '/' || path.startsWith(base)) return;
+        // Redireciona para a base mantendo o final do caminho quando for uma página existente
+        // Para páginas conhecidas, tentar mapear
+        var known = ['index.html','pages/events.html','pages/dashboard.html','pages/calendar.html','pages/chat.html','pages/profile.html','login-firebase.html','register-firebase.html'];
+        var last = path.split('/').pop();
+        if (known.indexOf(last) >= 0) {
+          location.href = base + last;
+        }
+      } catch(e) {}
+    })();
+  </script>
+</body>
+</html>
