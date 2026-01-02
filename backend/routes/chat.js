@@ -3,6 +3,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 const Conversation = require('../models/Conversation');
 const ChatMessage = require('../models/ChatMessage');
 const User = require('../models/User');
+const Event = require('../models/Event');
 
 const router = express.Router();
 
@@ -70,6 +71,46 @@ router.post('/conversations/dm', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Erro ao criar/garantir DM:', err);
     res.status(500).json({ error: 'Falha ao criar conversa' });
+  }
+});
+
+// Criar/garantir conversa de grupo para um evento
+router.post('/conversations/event', authMiddleware, async (req, res) => {
+  try {
+    const me = String(req.user._id);
+    const eventId = String(req.body.eventId || '');
+    if (!eventId) return res.status(400).json({ error: 'eventId obrigatório' });
+
+    // validar evento existente
+    let ev = null;
+    try { ev = await Event.findById(eventId); } catch (_) {}
+    if (!ev) return res.status(404).json({ error: 'Evento não encontrado' });
+
+    // procurar conversa de grupo vinculada ao evento
+    let convs = await Conversation.find({ type: 'group', eventId });
+    let conv = convs && convs.length ? convs[0] : null;
+    if (!conv) {
+      conv = new Conversation({ type: 'group', title: ev.title || 'Evento', participants: [me], eventId });
+      await conv.save();
+    } else {
+      // garantir que o usuário atual é participante
+      const hasMe = (conv.participants || []).some(p => String(p) === me);
+      if (!hasMe) {
+        conv.participants = [...(conv.participants || []), me];
+        await conv.save();
+      }
+    }
+    res.json({
+      conversation: {
+        _id: conv._id,
+        name: conv.title || (ev.title || 'Evento'),
+        isGroup: true,
+        eventId: eventId
+      }
+    });
+  } catch (err) {
+    console.error('Erro ao criar/garantir conversa de evento:', err);
+    res.status(500).json({ error: 'Falha ao criar conversa de evento' });
   }
 });
 

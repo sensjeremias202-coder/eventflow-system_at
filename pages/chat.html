@@ -1328,7 +1328,8 @@
                 const res = await api.get('/events', { auth: true });
                 if (res.ok) {
                     const data = await res.json();
-                    events = Array.isArray(data) ? data : (data.events || []);
+                    const items = Array.isArray(data?.items) ? data.items : [];
+                    events = items.map(e => ({ _id: e.id || e._id, id: e.id || e._id, title: e.title, date: e.date, location: e.location }));
                 }
             } catch (err) {
                 console.warn('Falha ao buscar eventos no backend. Usando fallback.', err);
@@ -1336,9 +1337,7 @@
 
             if (!events || events.length === 0) {
                 events = [
-                    { _id: 1, id: 1, title: "Conferência Tech 2024", date: "15 Nov", location: "São Paulo" },
-                    { _id: 2, id: 2, title: "Workshop Marketing", date: "20 Nov", location: "Online" },
-                    { _id: 3, id: 3, title: "Meetup Desenvolvedores", date: "25 Nov", location: "Rio de Janeiro" }
+                    { _id: 'sample-1', id: 'sample-1', title: "Conferência Tech", date: "2026-01-10", location: "São Paulo" }
                 ];
             }
 
@@ -1370,13 +1369,13 @@
             eventList.querySelectorAll('.conversation-item').forEach(item => {
                 item.addEventListener('click', (e) => {
                     if (!e.target.closest('.chat-action-btn')) {
-                        createNewConversation(item.dataset.eventId);
+                        createEventConversation(item.dataset.eventId);
                     }
                 });
                 const plusBtn = item.querySelector('.chat-action-btn');
                 if (plusBtn) {
                     plusBtn.addEventListener('click', () => {
-                        createNewConversation(item.dataset.eventId);
+                        createEventConversation(item.dataset.eventId);
                     });
                 }
             });
@@ -1502,47 +1501,37 @@
             }
         }
 
-        // Criar nova conversa
-        function createNewConversation(eventId) {
-            const events = (window.EventflowData?.events || []);
-            let ev = events.find(e => (e._id || e.id) == eventId);
-            
-            if (!ev) {
-                ev = { id: eventId, title: `Evento ${eventId}`, date: "Em breve", location: "A definir" };
-            }
-
-            // Verificar se já existe conversa
-            const existingConv = conversationsData.find(c => c.eventId == eventId);
-            if (existingConv) {
-                selectConversation(existingConv.id);
+        // Criar/garantir conversa de evento via backend
+        async function createEventConversation(eventId) {
+            try {
+                const res = await api.post('/chat/conversations/event', { eventId }, { auth: true });
+                if (!res.ok) throw new Error('Falha ao criar conversa de evento');
+                const data = await res.json();
+                const conv = data.conversation;
+                // Atualizar lista e abrir
+                const existing = conversationsData.find(c => String(c.id) === String(conv._id));
+                if (!existing) {
+                    conversationsData.unshift({
+                        id: conv._id,
+                        name: conv.name,
+                        lastMessage: 'Conversa iniciada sobre o evento',
+                        time: 'Agora',
+                        unread: 0,
+                        participants: [],
+                        eventId: conv.eventId || eventId,
+                        isGroup: true,
+                        online: false
+                    });
+                }
+                messagesData[conv._id] = messagesData[conv._id] || [];
+                loadConversations();
+                selectConversation(conv._id);
                 closeModal();
-                return;
+                showToast('Conversa do evento criada!');
+            } catch (err) {
+                console.error('Falha ao criar conversa de evento', err);
+                showToast('Erro ao criar conversa do evento');
             }
-
-            // Criar nova conversa
-            const newConversation = {
-                id: Date.now(),
-                name: ev.title,
-                lastMessage: "Conversa iniciada sobre o evento",
-                time: "Agora",
-                unread: 0,
-                participants: [currentUser?.name || 'João Silva', "Organizador"],
-                eventId: eventId,
-                isGroup: true,
-                lastSeen: "",
-                online: false
-            };
-
-            conversationsData.unshift(newConversation);
-            messagesData[newConversation.id] = [];
-
-            // Atualizar interface
-            loadConversations();
-            selectConversation(newConversation.id);
-            closeModal();
-
-            // Mostrar feedback
-            showToast('Conversa criada com sucesso!');
         }
 
         // Mostrar toast
