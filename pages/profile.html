@@ -918,6 +918,20 @@ async function loadUserData() {
         document.getElementById('location').value = profile.location || '';
         document.getElementById('bio').value = profile.bio || '';
 
+        // Avatar
+        const avatarEl = document.querySelector('.avatar-image');
+        if (avatarEl) {
+            if (profile.avatar) {
+                avatarEl.style.backgroundImage = `url(${profile.avatar})`;
+                avatarEl.style.backgroundSize = 'cover';
+                avatarEl.style.backgroundPosition = 'center';
+                avatarEl.innerHTML = '';
+            } else {
+                avatarEl.style.backgroundImage = '';
+                avatarEl.innerHTML = '<i class="fas fa-user"></i>';
+            }
+        }
+
         document.getElementById('emailNotifications').checked = profile.emailNotifications !== false;
         document.getElementById('pushNotifications').checked = profile.pushNotifications !== false;
         document.getElementById('eventReminders').checked = profile.eventReminders !== false;
@@ -988,6 +1002,12 @@ function setupProfileFunctionality() {
 
     // Preferências
     setupPreferences();
+
+    // Upload/Tirar foto do avatar
+    const uploadBtn = document.getElementById('uploadAvatarBtn');
+    if (uploadBtn) {
+        uploadBtn.addEventListener('click', openAvatarModal);
+    }
 }
 
 function updateSidebar() {
@@ -1112,6 +1132,155 @@ function showToast(title, message, type = 'info') {
     }, 5000);
     
     toast.querySelector('.toast-close').onclick = () => toast.remove();
+}
+
+// Modal de avatar (upload e câmera)
+function openAvatarModal() {
+    // cria modal básico se não existir
+    let modal = document.getElementById('avatarModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'avatarModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 style="margin:0;display:flex;align-items:center;gap:8px"><i class="fas fa-camera"></i> Atualizar foto de perfil</h3>
+                    <button class="modal-close" id="avatarModalClose">&times;</button>
+                </div>
+                <div class="modal-body" style="display:grid;gap:16px">
+                    <div style="border:1px solid #eee;border-radius:8px;padding:12px">
+                        <h4 style="margin:0 0 8px 0">Enviar imagem</h4>
+                        <input type="file" id="avatarFileInput" accept="image/*" />
+                        <div id="avatarUploadPreview" style="margin-top:10px;display:none">
+                            <img id="avatarUploadImg" alt="Prévia" style="width:120px;height:120px;border-radius:50%;object-fit:cover" />
+                        </div>
+                        <div style="margin-top:10px;text-align:right">
+                            <button class="btn btn-primary" id="saveUploadAvatarBtn">Salvar</button>
+                        </div>
+                    </div>
+                    <div style="border:1px solid #eee;border-radius:8px;padding:12px">
+                        <h4 style="margin:0 0 8px 0">Tirar foto</h4>
+                        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                            <video id="avatarVideo" autoplay playsinline style="width:200px;height:150px;background:#000;border-radius:8px"></video>
+                            <canvas id="avatarCanvas" width="200" height="200" style="display:none"></canvas>
+                            <img id="avatarCameraPreview" alt="Prévia" style="width:120px;height:120px;border-radius:50%;object-fit:cover;display:none" />
+                        </div>
+                        <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+                            <button class="btn btn-secondary" id="startCameraBtn">Abrir câmera</button>
+                            <button class="btn btn-secondary" id="captureAvatarBtn">Capturar</button>
+                            <button class="btn btn-primary" id="saveCameraAvatarBtn">Salvar</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="avatarCancelBtn">Fechar</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        // Estilo básico aproveita a classe .modal existente
+    }
+    modal.classList.add('active');
+
+    const close = () => { modal.classList.remove('active'); stopCamera(); };
+    document.getElementById('avatarModalClose').onclick = close;
+    document.getElementById('avatarCancelBtn').onclick = close;
+    modal.onclick = (e) => { if (e.target === modal) close(); };
+
+    // Upload flow
+    const fileInput = document.getElementById('avatarFileInput');
+    const uploadPreview = document.getElementById('avatarUploadPreview');
+    const uploadImg = document.getElementById('avatarUploadImg');
+    fileInput.onchange = () => {
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) { uploadPreview.style.display = 'none'; return; }
+        const reader = new FileReader();
+        reader.onload = () => {
+            uploadImg.src = reader.result;
+            uploadPreview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    };
+    document.getElementById('saveUploadAvatarBtn').onclick = async () => {
+        const src = uploadImg.src;
+        if (!src) { showToast('Erro', 'Selecione uma imagem para enviar', 'error'); return; }
+        await saveAvatar(src, close);
+    };
+
+    // Camera flow
+    document.getElementById('startCameraBtn').onclick = startCamera;
+    document.getElementById('captureAvatarBtn').onclick = captureAvatar;
+    document.getElementById('saveCameraAvatarBtn').onclick = async () => {
+        const img = document.getElementById('avatarCameraPreview');
+        const src = img.src;
+        if (!src) { showToast('Erro', 'Capture uma foto antes de salvar', 'error'); return; }
+        await saveAvatar(src, close);
+    };
+}
+
+let _mediaStream = null;
+async function startCamera() {
+    try {
+        const video = document.getElementById('avatarVideo');
+        _mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        video.srcObject = _mediaStream;
+    } catch (err) {
+        console.error('Erro ao abrir câmera', err);
+        showToast('Erro', 'Não foi possível acessar a câmera', 'error');
+    }
+}
+
+function stopCamera() {
+    try {
+        if (_mediaStream) {
+            _mediaStream.getTracks().forEach(t => t.stop());
+            _mediaStream = null;
+        }
+        const video = document.getElementById('avatarVideo');
+        if (video) video.srcObject = null;
+    } catch {}
+}
+
+function captureAvatar() {
+    const video = document.getElementById('avatarVideo');
+    const canvas = document.getElementById('avatarCanvas');
+    const preview = document.getElementById('avatarCameraPreview');
+    if (!video || !video.srcObject) { showToast('Câmera', 'Abra a câmera primeiro', 'info'); return; }
+    const ctx = canvas.getContext('2d');
+    // desenha central com crop quadrado
+    const vw = video.videoWidth || 400;
+    const vh = video.videoHeight || 300;
+    const size = Math.min(vw, vh);
+    const sx = (vw - size) / 2;
+    const sy = (vh - size) / 2;
+    canvas.width = 200; canvas.height = 200;
+    ctx.drawImage(video, sx, sy, size, size, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    preview.src = dataUrl;
+    preview.style.display = 'block';
+}
+
+async function saveAvatar(dataUrl, onDone) {
+    try {
+        const res = await api.put('/auth/profile', { avatar: dataUrl }, { auth: true });
+        const body = await res.json().catch(()=>({}));
+        if (!res.ok) throw new Error(body.error || 'Falha ao salvar avatar');
+        // Atualiza UI
+        const avatarEl = document.querySelector('.avatar-image');
+        if (avatarEl) {
+            avatarEl.style.backgroundImage = `url(${dataUrl})`;
+            avatarEl.style.backgroundSize = 'cover';
+            avatarEl.style.backgroundPosition = 'center';
+            avatarEl.innerHTML = '';
+        }
+        currentProfile = Object.assign({}, currentProfile, { avatar: dataUrl });
+        showToast('Sucesso!', 'Foto de perfil atualizada', 'success');
+        if (typeof onDone === 'function') onDone();
+    } catch (err) {
+        console.error('Erro ao salvar avatar', err);
+        showToast('Erro', 'Não foi possível salvar a foto', 'error');
+    }
 }
     </script>
 </body>
