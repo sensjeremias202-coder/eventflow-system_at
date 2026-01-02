@@ -7,6 +7,7 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/authMiddleware');
 const { sendMail } = require('../config/mailer');
 const { sendSMS } = require('../config/sms');
+const { sendWhatsApp } = require('../config/whatsapp');
 
 // Registro de usuário
 router.post('/register', async (req, res) => {
@@ -288,10 +289,15 @@ router.post('/reset-password', async (req, res) => {
 router.post('/request-verification', authMiddleware, async (req, res) => {
     try {
         const method = (req.body.method || 'email').toLowerCase();
-        if (!['email','phone'].includes(method)) return res.status(400).json({ error: 'Método inválido' });
+        if (!['email','phone','whatsapp'].includes(method)) return res.status(400).json({ error: 'Método inválido' });
         if (method === 'phone') {
             const phone = String(req.body.phone || req.user.phone || '').trim();
             if (!phone) return res.status(400).json({ error: 'Telefone é obrigatório para SMS' });
+            req.user.phone = phone;
+        }
+        if (method === 'whatsapp') {
+            const phone = String(req.body.phone || req.user.phone || '').trim();
+            if (!phone) return res.status(400).json({ error: 'Telefone é obrigatório para WhatsApp' });
             req.user.phone = phone;
         }
         const code = req.user.generateVerificationCode(method);
@@ -305,9 +311,12 @@ router.post('/request-verification', authMiddleware, async (req, res) => {
                 <p>Este código expira em 10 minutos.</p>
             `;
             await sendMail({ to: req.user.email, subject: 'Eventflow - Verificação de conta', html });
-        } else {
+        } else if (method === 'phone') {
             const msg = `Seu código de verificação Eventflow é ${code}. Expira em 10 minutos.`;
             await sendSMS(req.user.phone, msg);
+        } else if (method === 'whatsapp') {
+            const msg = `Seu código de verificação Eventflow é ${code}. Expira em 10 minutos.`;
+            await sendWhatsApp(req.user.phone, msg);
         }
 
         res.json({ message: 'Código de verificação enviado' });

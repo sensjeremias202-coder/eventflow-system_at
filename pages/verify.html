@@ -29,6 +29,7 @@
     <div class="methods">
       <button id="methodEmail"><i class="fas fa-envelope"></i> Email</button>
       <button id="methodPhone"><i class="fas fa-sms"></i> SMS</button>
+      <button id="methodWhatsApp"><i class="fab fa-whatsapp"></i> WhatsApp</button>
     </div>
 
     <div class="form-group" id="phoneGroup" style="display:none;margin-bottom:8px">
@@ -56,10 +57,10 @@
       try {
         currentMethod = method;
         const phone = document.getElementById('phone')?.value?.trim();
-        const body = method === 'phone' ? { method, phone } : { method };
+        const body = (method === 'phone' || method === 'whatsapp') ? { method, phone } : { method };
         const res = await api.post('/auth/request-verification', body, { auth: true });
         const data = res.ok ? await res.json() : { error: 'Falha ao solicitar' };
-        const msg = method === 'email' ? 'Código enviado. Verifique seu email.' : 'Código enviado por SMS.';
+        const msg = method === 'email' ? 'Código enviado. Verifique seu email.' : (method === 'phone' ? 'Código enviado por SMS.' : 'Código enviado por WhatsApp.');
         document.getElementById('requestStatus').textContent = res.ok ? msg : (data.error||'Erro');
       } catch(err){ document.getElementById('requestStatus').textContent = 'Erro ao solicitar código'; }
     }
@@ -75,6 +76,7 @@
     }
     document.getElementById('methodEmail').onclick = () => { document.getElementById('phoneGroup').style.display='none'; requestCode('email'); };
     document.getElementById('methodPhone').onclick = () => { document.getElementById('phoneGroup').style.display='block'; requestCode('phone'); };
+    document.getElementById('methodWhatsApp').onclick = () => { document.getElementById('phoneGroup').style.display='block'; requestCode('whatsapp'); };
     document.getElementById('resendBtn').onclick = () => requestCode(currentMethod);
     document.getElementById('confirmBtn').onclick = confirm;
 
