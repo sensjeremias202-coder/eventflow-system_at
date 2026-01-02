@@ -37,6 +37,12 @@
       <input type="tel" id="phone" placeholder="+55DDDNUMERO" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:8px" />
     </div>
 
+    <div id="qrSection" style="display:none; margin:12px 0; text-align:center">
+      <p style="color:#2e5051; margin-bottom:8px"><i class="fab fa-whatsapp"></i> Escaneie para abrir conversa no WhatsApp</p>
+      <img id="qrImage" alt="QR WhatsApp" style="width:200px;height:200px;border:1px solid #eee;border-radius:8px" />
+      <div style="font-size:12px;color:#777;margin-top:6px">Dica: adicione o contato para facilitar verificações futuras.</div>
+    </div>
+
     <div id="requestStatus" style="color:#2e5051;margin-bottom:8px"></div>
 
     <input type="text" id="code" class="code-input" placeholder="000000" maxlength="6" />
@@ -44,6 +50,26 @@
     <div class="actions">
       <button class="btn btn-secondary" id="resendBtn"><i class="fas fa-redo"></i> Reenviar código</button>
       <button class="btn btn-primary" id="confirmBtn"><i class="fas fa-check"></i> Confirmar</button>
+    </div>
+
+    <hr style="margin:18px 0;border:none;border-top:1px solid #eee"/>
+
+    <div id="totpSection">
+      <h3 style="margin:0 0 8px 0"><i class="fas fa-mobile-alt"></i> Autenticação de Dois Fatores (TOTP)</h3>
+      <p style="color:#555">Opcional: proteja seu acesso com Google Authenticator ou similar.</p>
+      <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap">
+        <button class="btn btn-secondary" id="setupTotpBtn"><i class="fas fa-qrcode"></i> Gerar QR TOTP</button>
+        <div id="totpInfo" style="display:none">
+          <div style="margin:8px 0">
+            <img id="totpQr" alt="QR TOTP" style="width:200px;height:200px;border:1px solid #eee;border-radius:8px" />
+          </div>
+          <div style="font-size:12px;color:#777">Segredo (Base32): <span id="totpSecret" style="font-weight:600;color:#2e5051"></span></div>
+        </div>
+      </div>
+      <div style="margin-top:10px; display:flex; gap:8px; align-items:center">
+        <input type="text" id="totpCode" placeholder="Código TOTP (000000)" style="flex:1;padding:10px;border:2px solid #ddd;border-radius:8px"/>
+        <button class="btn btn-primary" id="enableTotpBtn"><i class="fas fa-shield-alt"></i> Habilitar 2FA</button>
+      </div>
     </div>
 
     <div style="margin-top:12px">
@@ -62,6 +88,19 @@
         const data = res.ok ? await res.json() : { error: 'Falha ao solicitar' };
         const msg = method === 'email' ? 'Código enviado. Verifique seu email.' : (method === 'phone' ? 'Código enviado por SMS.' : 'Código enviado por WhatsApp.');
         document.getElementById('requestStatus').textContent = res.ok ? msg : (data.error||'Erro');
+        // Se for WhatsApp e telefone informado, exibe QR para abrir conversa
+        const qrSection = document.getElementById('qrSection');
+        const qrImage = document.getElementById('qrImage');
+        if (method === 'whatsapp' && phone) {
+          try {
+            const waUrl = `https://wa.me/${encodeURIComponent(phone)}?text=${encodeURIComponent('Olá, quero verificar minha conta Eventflow.')}`;
+            // Usando serviço público de QR
+            qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(waUrl)}`;
+            qrSection.style.display = 'block';
+          } catch(_) { qrSection.style.display = 'none'; }
+        } else {
+          qrSection.style.display = 'none';
+        }
       } catch(err){ document.getElementById('requestStatus').textContent = 'Erro ao solicitar código'; }
     }
     async function confirm(){
@@ -79,6 +118,30 @@
     document.getElementById('methodWhatsApp').onclick = () => { document.getElementById('phoneGroup').style.display='block'; requestCode('whatsapp'); };
     document.getElementById('resendBtn').onclick = () => requestCode(currentMethod);
     document.getElementById('confirmBtn').onclick = confirm;
+
+    // TOTP handlers
+    document.getElementById('setupTotpBtn').onclick = async () => {
+      try {
+        const res = await api.post('/auth/totp/setup', {}, { auth: true });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Falha ao gerar TOTP'); return; }
+        const { base32, otpauth_url } = data;
+        document.getElementById('totpSecret').textContent = base32 || '';
+        const img = document.getElementById('totpQr');
+        img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauth_url)}`;
+        document.getElementById('totpInfo').style.display = 'block';
+      } catch (e) { alert('Erro ao gerar QR TOTP'); }
+    };
+    document.getElementById('enableTotpBtn').onclick = async () => {
+      try {
+        const code = document.getElementById('totpCode').value.trim();
+        if (!code) { alert('Informe o código TOTP'); return; }
+        const res = await api.post('/auth/totp/enable', { code }, { auth: true });
+        const data = await res.json();
+        if (res.ok) { alert('2FA habilitada com sucesso'); }
+        else { alert(data.error || 'Falha ao habilitar 2FA'); }
+      } catch (e) { alert('Erro ao habilitar 2FA'); }
+    };
 
     // Solicita automaticamente ao abrir
     requestCode('email');
