@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="../styles.css">
     <script src="../config.js"></script>
     <script src="../api.js"></script>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js" integrity="sha384-z3r7Y6uX1p3VYmc2bHcy3WgWmFdoH2cWc3cHkH0zYpZ2cKJrTz1OeC3p0sS7nK9X" crossorigin="anonymous"></script>
     <style>
         :root {
             --whatsapp-green: #25D366;
@@ -1027,6 +1028,10 @@
             
             // Carregar mensagens
             loadMessages(conversationId);
+            // Realtime: entrar na sala
+            if (window.socket) {
+                window.socket.emit('chat:join', { conversationId });
+            }
             
             // Marcar como lida
             markAsRead(conversationId);
@@ -1201,6 +1206,15 @@
                     updateMessageStatus(newMessage.id, "read");
                 }, 2000);
             }, 1000);
+
+            // Realtime: enviar para o servidor
+            try {
+                if (window.socket) {
+                    window.socket.emit('chat:message', { conversationId: currentConversationId, text: message });
+                }
+            } catch (err) {
+                console.warn('Falha ao emitir mensagem realtime', err);
+            }
 
             // Simular resposta automática se for grupo
             if (conversation?.isGroup) {
@@ -1396,6 +1410,64 @@
         document.addEventListener('DOMContentLoaded', async () => {
             await loadUserInfo();
             loadConversations();
+            // Conectar Socket.IO
+            try {
+                const base = (typeof window.API_BASE_URL !== 'undefined' && window.API_BASE_URL) ? window.API_BASE_URL : '';
+                window.socket = io(base, {
+                    transports: ['websocket'],
+                    auth: { token: api.token.get() }
+                });
+
+                // Receber histórico ao entrar
+                window.socket.on('chat:history', ({ conversationId, messages }) => {
+                    messagesData[conversationId] = messages.map(m => ({
+                        id: m.id,
+                        sender: m.senderName,
+                        message: m.text,
+                        time: m.time,
+                        type: m.senderName === (currentUser?.name || 'João Silva') ? 'sent' : 'received',
+                        status: 'delivered',
+                        date: 'Hoje'
+                    }));
+                    if (String(conversationId) === String(currentConversationId)) {
+                        loadMessages(currentConversationId);
+                    }
+                });
+
+                // Receber novas mensagens
+                window.socket.on('chat:message', ({ conversationId, message }) => {
+                    const msg = {
+                        id: message.id,
+                        sender: message.senderName,
+                        message: message.text,
+                        time: message.time,
+                        type: message.senderName === (currentUser?.name || 'João Silva') ? 'sent' : 'received',
+                        status: 'delivered',
+                        date: 'Hoje'
+                    };
+                    messagesData[conversationId] = messagesData[conversationId] || [];
+                    messagesData[conversationId].push(msg);
+                    if (String(conversationId) === String(currentConversationId)) {
+                        loadMessages(currentConversationId);
+                    } else {
+                        // incrementa badge da conversa não ativa
+                        const conv = conversationsData.find(c => String(c.id) === String(conversationId));
+                        if (conv) {
+                            conv.unread = (conv.unread || 0) + 1;
+                            updateConversationBadge(conversationId);
+                        }
+                    }
+                });
+
+                // Indicador de digitação
+                window.socket.on('chat:typing', ({ conversationId }) => {
+                    if (String(conversationId) === String(currentConversationId)) {
+                        showTypingIndicator();
+                    }
+                });
+            } catch (err) {
+                console.warn('Falha ao conectar Socket.IO', err);
+            }
 
             // Event Listeners
             document.getElementById('newChatBtn').addEventListener('click', showNewChatModal);
@@ -1426,6 +1498,10 @@
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage();
+                }
+                // Emite typing quando teclas comuns
+                if (window.socket && currentConversationId && e.key.length === 1) {
+                    window.socket.emit('chat:typing', { conversationId: currentConversationId });
                 }
                 if (e.key === 'Escape') {
                     // Esc fecha modal
