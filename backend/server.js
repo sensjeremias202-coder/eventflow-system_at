@@ -10,6 +10,7 @@ const eventsRoutes = require('./routes/events');
 const usersRoutes = require('./routes/users');
 const User = require('./models/User');
 const ChatMessage = require('./models/ChatMessage');
+const Conversation = require('./models/Conversation');
 const presence = require('./services/presence');
 
 const app = express();
@@ -142,6 +143,37 @@ io.on('connection', (socket) => {
         });
         cm.save().catch(()=>{});
         io.to(String(conversationId)).emit('chat:message', { conversationId, message: msg });
+    });
+
+    // Histórico paginado sob demanda
+    socket.on('chat:historyPage', async ({ conversationId, page = 1, limit = 50 }) => {
+        try {
+            const msgs = await ChatMessage.find({ conversationId, page, limit });
+            socket.emit('chat:historyPage', { conversationId, page, messages: msgs });
+        } catch (e) {
+            const all = chatStore.messages[String(conversationId)] || [];
+            const start = (page - 1) * limit;
+            const slice = all.slice(start, start + limit);
+            socket.emit('chat:historyPage', { conversationId, page, messages: slice });
+        }
+    });
+
+    // Criar/obter conversa DM
+    socket.on('chat:ensureDM', async ({ userId }) => {
+        if (!userId) return;
+        const me = String(socket.user._id);
+        const other = String(userId);
+        let conv = null;
+        try {
+            const existing = await Conversation.findDM(me, other);
+            if (existing) conv = existing; else {
+                conv = new Conversation({ type: 'dm', participants: [me, other] });
+                await conv.save();
+            }
+        } catch(e) {
+            // fallback memória já coberto no findDM/save
+        }
+        socket.emit('chat:dmReady', { conversationId: conv?._id || `dm:${[me, other].sort().join('-')}` });
     });
 
     socket.on('disconnect', () => {

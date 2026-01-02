@@ -755,6 +755,9 @@
                     </div>
                 </div>
                 <div class="chat-actions">
+                    <button class="chat-action-btn" id="backToListBtn" title="Voltar para lista">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
                     <button class="chat-action-btn" title="Informações">
                         <i class="fas fa-info-circle"></i>
                     </button>
@@ -933,6 +936,7 @@
 
         let currentConversationId = null;
         let currentUser = null;
+        const messagesPages = {};
 
         // Carregar informações do usuário
         async function loadUserInfo() {
@@ -1036,6 +1040,8 @@
             if (window.socket) {
                 window.socket.emit('chat:join', { conversationId });
             }
+            // Controle de paginação
+            messagesPages[conversationId] = 1;
             
             // Marcar como lida
             markAsRead(conversationId);
@@ -1131,6 +1137,14 @@
 
             // Rolar para o final
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // Infinite scroll: carregar anteriores ao chegar no topo
+            messagesContainer.onscroll = () => {
+                if (messagesContainer.scrollTop <= 10 && window.socket) {
+                    const page = (messagesPages[conversationId] || 1) + 1;
+                    window.socket.emit('chat:historyPage', { conversationId, page, limit: 50 });
+                }
+            };
         }
 
         // Agrupar mensagens por data
@@ -1553,6 +1567,29 @@
                     }
                 });
 
+                // Receber histórico paginado
+                window.socket.on('chat:historyPage', ({ conversationId, page, messages }) => {
+                    const arr = (messages || []).map(m => ({
+                        id: m._id || m.id,
+                        sender: m.senderName,
+                        message: m.text,
+                        time: m.time,
+                        type: m.senderName === (currentUser?.name || 'João Silva') ? 'sent' : 'received',
+                        status: 'delivered',
+                        date: 'Hoje'
+                    }));
+                    const container = document.getElementById('messagesContainer');
+                    const prevHeight = container.scrollHeight;
+                    messagesData[conversationId] = (messagesData[conversationId] || []);
+                    messagesData[conversationId] = arr.concat(messagesData[conversationId]);
+                    messagesPages[conversationId] = page;
+                    if (String(conversationId) === String(currentConversationId)) {
+                        loadMessages(currentConversationId);
+                        // manter posição próxima ao carregamento anterior
+                        container.scrollTop = container.scrollHeight - prevHeight;
+                    }
+                });
+
                 // Receber novas mensagens
                 window.socket.on('chat:message', ({ conversationId, message }) => {
                     const msg = {
@@ -1610,6 +1647,10 @@
             document.getElementById('newChatBtn').addEventListener('click', () => {
                 showNewChatModal();
                 loadUsersForNewChat();
+            });
+            // Botão voltar
+            document.getElementById('backToListBtn').addEventListener('click', () => {
+                document.getElementById('sidebar').classList.remove('hidden');
             });
             document.getElementById('tabUsersBtn').addEventListener('click', loadUsersForNewChat);
             document.getElementById('tabEventsBtn').addEventListener('click', loadEventsForNewChat);
