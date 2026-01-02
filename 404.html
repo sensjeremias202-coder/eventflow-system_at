@@ -19,7 +19,7 @@
     <p>O endereço acessado não existe neste site.</p>
     <div class="actions">
       <a class="btn btn-primary" href="/eventflow-system_at/">Ir para a página inicial</a>
-      <a class="btn btn-secondary" href="pages/events.html">Abrir listagem de eventos</a>
+      <a class="btn btn-secondary" href="/eventflow-system_at/pages/events.html">Abrir listagem de eventos</a>
     </div>
     <hr style="margin:24px 0; opacity:0.2">
     <p>Se você é o dono do site, verifique:</p>
@@ -32,14 +32,22 @@
       var base = '/eventflow-system_at/';
       try {
         var path = location.pathname || '';
-        // Se for raiz do repo ou já estiver em base, manter
-        if (!path || path === '/' || path.startsWith(base)) return;
-        // Redireciona para a base mantendo o final do caminho quando for uma página existente
-        // Para páginas conhecidas, tentar mapear
-        var known = ['index.html','pages/events.html','pages/dashboard.html','pages/calendar.html','pages/chat.html','pages/profile.html','login-firebase.html','register-firebase.html'];
-        var last = path.split('/').pop();
-        if (known.indexOf(last) >= 0) {
-          location.href = base + last;
+        // Se a URL não está na base do projeto, tentar normalizar
+        if (!path.startsWith(base)) {
+          var last = path.split('/').pop();
+          var map = {
+            'events.html': 'pages/events.html',
+            'dashboard.html': 'pages/dashboard.html',
+            'calendar.html': 'pages/calendar.html',
+            'chat.html': 'pages/chat.html',
+            'profile.html': 'pages/profile.html',
+            'index.html': 'index.html',
+            'login-firebase.html': 'login-firebase.html',
+            'register-firebase.html': 'register-firebase.html'
+          };
+          if (map[last]) {
+            location.replace(base + map[last]);
+          }
         }
       } catch(e) {}
     })();
