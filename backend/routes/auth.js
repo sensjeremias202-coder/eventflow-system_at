@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const speakeasy = (() => { try { return require('speakeasy'); } catch(_) { return null; } })();
 const User = require('../models/User');
 const authMiddleware = require('../middleware/authMiddleware');
 const { sendMail } = require('../config/mailer');
-const crypto = require('crypto');
+const { sendSMS } = require('../config/sms');
 
 // Registro de usuário
 router.post('/register', async (req, res) => {
@@ -54,7 +55,7 @@ router.post('/register', async (req, res) => {
 // Login de usuário
 router.post('/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, totp } = req.body;
         
         // Encontra usuário
         const user = await User.findOne({ email });
@@ -68,6 +69,15 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ error: 'Email ou senha incorretos' });
         }
         
+        // Se 2FA estiver habilitado, validar TOTP
+        if (user.twoFactorEnabled === true) {
+            if (!speakeasy) return res.status(500).json({ error: 'TOTP não disponível' });
+            const ok = speakeasy.totp.verify({ secret: user.totpSecret, encoding: 'base32', token: String(totp || ''), window: 1 });
+            if (!ok) {
+                return res.status(401).json({ error: 'TOTP necessário ou inválido' });
+            }
+        }
+
         // Gera token JWT
         const token = jwt.sign(
             { userId: user._id },
@@ -111,6 +121,7 @@ router.get('/profile', authMiddleware, async (req, res) => {
                 location: req.user.location,
                 bio: req.user.bio,
                 avatar: req.user.avatar,
+                isVerified: req.user.isVerified === true,
                 emailNotifications: req.user.emailNotifications,
                 pushNotifications: req.user.pushNotifications,
                 eventReminders: req.user.eventReminders,
@@ -278,6 +289,11 @@ router.post('/request-verification', authMiddleware, async (req, res) => {
     try {
         const method = (req.body.method || 'email').toLowerCase();
         if (!['email','phone'].includes(method)) return res.status(400).json({ error: 'Método inválido' });
+        if (method === 'phone') {
+            const phone = String(req.body.phone || req.user.phone || '').trim();
+            if (!phone) return res.status(400).json({ error: 'Telefone é obrigatório para SMS' });
+            req.user.phone = phone;
+        }
         const code = req.user.generateVerificationCode(method);
         await req.user.save();
 
@@ -290,7 +306,8 @@ router.post('/request-verification', authMiddleware, async (req, res) => {
             `;
             await sendMail({ to: req.user.email, subject: 'Eventflow - Verificação de conta', html });
         } else {
-            // Para telefone/SMS, integrar provedor (ex.: Twilio). Aqui apenas simulamos sucesso.
+            const msg = `Seu código de verificação Eventflow é ${code}. Expira em 10 minutos.`;
+            await sendSMS(req.user.phone, msg);
         }
 
         res.json({ message: 'Código de verificação enviado' });
@@ -319,6 +336,41 @@ router.post('/verify', authMiddleware, async (req, res) => {
         res.json({ message: 'Conta verificada com sucesso' });
     } catch (error) {
         console.error('Erro em verify:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
+
+// TOTP: gerar segredo para configurar no Google Authenticator
+router.post('/totp/setup', authMiddleware, async (req, res) => {
+    try {
+        if (!speakeasy) return res.status(500).json({ error: 'Biblioteca TOTP não disponível' });
+        const label = encodeURIComponent(`Eventflow:${req.user.email}`);
+        const issuer = encodeURIComponent('Eventflow');
+        const secret = speakeasy.generateSecret({ length: 20, name: `Eventflow:${req.user.email}`, issuer: 'Eventflow' });
+        req.user.totpSecret = secret.base32;
+        await req.user.save();
+        const otpauth = `otpauth://totp/${label}?secret=${secret.base32}&issuer=${issuer}`;
+        res.json({ base32: secret.base32, otpauth_url: otpauth });
+    } catch (error) {
+        console.error('Erro em totp/setup:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
+
+// TOTP: habilitar 2FA validando um código do Authenticator
+router.post('/totp/enable', authMiddleware, async (req, res) => {
+    try {
+        if (!speakeasy) return res.status(500).json({ error: 'Biblioteca TOTP não disponível' });
+        const { code } = req.body;
+        if (!code) return res.status(400).json({ error: 'Código TOTP é obrigatório' });
+        if (!req.user.totpSecret) return res.status(400).json({ error: 'TOTP não configurado' });
+        const ok = speakeasy.totp.verify({ secret: req.user.totpSecret, encoding: 'base32', token: String(code), window: 1 });
+        if (!ok) return res.status(400).json({ error: 'Código TOTP inválido' });
+        req.user.twoFactorEnabled = true;
+        await req.user.save();
+        res.json({ message: 'Autenticação de dois fatores habilitada' });
+    } catch (error) {
+        console.error('Erro em totp/enable:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });

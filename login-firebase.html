@@ -225,6 +225,11 @@
                     </button>
                 </div>
             </div>
+
+            <div class="form-group">
+                <label for="totp"><i class="fas fa-mobile-alt"></i> Código TOTP (se 2FA habilitado):</label>
+                <input type="text" id="totp" placeholder="000000" pattern="\d{6}" inputmode="numeric">
+            </div>
             
             <button type="submit" class="btn" id="loginBtn">
                 <span id="btnText">Entrar</span>
@@ -295,7 +300,8 @@
                 
                 // Tentar login via backend
                 try {
-                    const response = await api.post('/auth/login', { email, password });
+                    const totp = document.getElementById('totp').value.trim();
+                    const response = await api.post('/auth/login', { email, password, totp });
                     const result = await response.json();
                     if (response.ok) {
                         api.token.set(result.token);

@@ -29,6 +29,7 @@ if (useMemory) {
             this.eventReminders = obj.eventReminders ?? true;
             this.messageNotifications = obj.messageNotifications ?? true;
             this.twoFactorEnabled = obj.twoFactorEnabled ?? false;
+            this.totpSecret = obj.totpSecret || null;
             this.eventsCount = obj.eventsCount ?? 0;
             this.participantsCount = obj.participantsCount ?? 0;
             this.successRate = obj.successRate ?? 0;
@@ -181,6 +182,7 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    totpSecret: { type: String, default: null },
     eventsCount: {
         type: Number,
         default: 0

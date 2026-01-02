@@ -28,7 +28,12 @@
 
     <div class="methods">
       <button id="methodEmail"><i class="fas fa-envelope"></i> Email</button>
-      <button id="methodPhone" disabled><i class="fas fa-sms"></i> SMS (em breve)</button>
+      <button id="methodPhone"><i class="fas fa-sms"></i> SMS</button>
+    </div>
+
+    <div class="form-group" id="phoneGroup" style="display:none;margin-bottom:8px">
+      <label for="phone"><i class="fas fa-phone"></i> Telefone (com DDI/DDD):</label>
+      <input type="tel" id="phone" placeholder="+55DDDNUMERO" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:8px" />
     </div>
 
     <div id="requestStatus" style="color:#2e5051;margin-bottom:8px"></div>
@@ -46,11 +51,16 @@
   </div>
 
   <script>
+    let currentMethod = 'email';
     async function requestCode(method){
       try {
-        const res = await api.post('/auth/request-verification', { method }, { auth: true });
+        currentMethod = method;
+        const phone = document.getElementById('phone')?.value?.trim();
+        const body = method === 'phone' ? { method, phone } : { method };
+        const res = await api.post('/auth/request-verification', body, { auth: true });
         const data = res.ok ? await res.json() : { error: 'Falha ao solicitar' };
-        document.getElementById('requestStatus').textContent = res.ok ? 'Código enviado. Verifique seu email.' : (data.error||'Erro');
+        const msg = method === 'email' ? 'Código enviado. Verifique seu email.' : 'Código enviado por SMS.';
+        document.getElementById('requestStatus').textContent = res.ok ? msg : (data.error||'Erro');
       } catch(err){ document.getElementById('requestStatus').textContent = 'Erro ao solicitar código'; }
     }
     async function confirm(){
@@ -63,8 +73,9 @@
         else { alert(data.error || 'Código inválido'); }
       } catch(err){ alert('Erro ao confirmar'); }
     }
-    document.getElementById('methodEmail').onclick = () => requestCode('email');
-    document.getElementById('resendBtn').onclick = () => requestCode('email');
+    document.getElementById('methodEmail').onclick = () => { document.getElementById('phoneGroup').style.display='none'; requestCode('email'); };
+    document.getElementById('methodPhone').onclick = () => { document.getElementById('phoneGroup').style.display='block'; requestCode('phone'); };
+    document.getElementById('resendBtn').onclick = () => requestCode(currentMethod);
     document.getElementById('confirmBtn').onclick = confirm;
 
     // Solicita automaticamente ao abrir
