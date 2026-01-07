@@ -49,10 +49,7 @@
                 <label for="email"><i class="fas fa-envelope"></i> Email</label>
                 <input type="email" id="email" placeholder="voce@email.com" required>
             </div>
-            <div class="form-group">
-                <label for="phone"><i class="fas fa-phone"></i> Telefone (com DDI/DDD)</label>
-                <input type="tel" id="phone" placeholder="+55DDDNUMERO" required>
-            </div>
+            
             <div class="form-group">
                 <label for="password"><i class="fas fa-lock"></i> Senha</label>
                 <input type="password" id="password" placeholder="Mínimo 6 caracteres" minlength="6" required>
@@ -92,17 +89,12 @@
                 return re.test(email);
             }
 
-            function validatePhone(phone) {
-                // Aceita formato internacional com + e dígitos
-                const re = /^\+[0-9]{7,15}$/;
-                return re.test(phone);
-            }
+            
 
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const name = document.getElementById('name').value.trim();
                 const email = document.getElementById('email').value.trim();
-                const phone = document.getElementById('phone').value.trim();
                 const password = document.getElementById('password').value;
                 const confirmPassword = document.getElementById('confirmPassword').value;
 
@@ -114,10 +106,7 @@
                     showMessage('Digite um email válido', 'error');
                     return;
                 }
-                if (!validatePhone(phone)) {
-                    showMessage('Informe o telefone com DDI/DDD. Ex: +5511999999999', 'error');
-                    return;
-                }
+                
                 if (password.length < 6) {
                     showMessage('A senha deve ter ao menos 6 caracteres', 'error');
                     return;
