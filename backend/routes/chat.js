@@ -59,6 +59,21 @@ router.post('/conversations/dm', authMiddleware, async (req, res) => {
       conv = new Conversation({ type: 'dm', participants: [me, other] });
       await conv.save();
     }
+    // Auto-join: colocar sockets conectados dos participantes na sala da DM
+    try {
+      const io = req.app.get('io');
+      if (io && io.sockets && io.sockets.sockets) {
+        const roomId = String(conv._id);
+        io.sockets.sockets.forEach((s) => {
+          try {
+            const uid = String(s.user?._id || '');
+            if ((conv.participants || []).some(p => String(p) === uid)) {
+              s.join(roomId);
+            }
+          } catch (_) {}
+        });
+      }
+    } catch (_) {}
     // nome amigável
     const otherUser = await User.findById(other);
     res.json({
