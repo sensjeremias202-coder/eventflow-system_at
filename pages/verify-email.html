@@ -26,6 +26,7 @@
       <input type="text" id="token" placeholder="cole seu token" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:8px" />
     </div>
     <div class="actions" style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+      <button class="btn" id="resendBtn" style="background:#eee;color:#333"><i class="fas fa-paper-plane"></i> Reenviar e-mail</button>
       <button class="btn btn-primary" id="confirmBtn"><i class="fas fa-check"></i> Confirmar</button>
     </div>
   </div>
@@ -53,6 +54,27 @@
     if (qToken) {
       document.getElementById('token').value = qToken;
     }
+
+    async function resend(){
+      const btn = document.getElementById('resendBtn');
+      btn.disabled = true;
+      btn.textContent = 'Enviando...';
+      try {
+        const res = await api.post('/auth/resend-email-verification', {}, { auth: true });
+        const data = await res.json().catch(()=>({}));
+        if (res.ok) {
+          alert(data.message || 'Email de confirmação reenviado. Verifique sua caixa de entrada.');
+        } else {
+          alert(data.error || 'Não foi possível reenviar o email. Faça login e tente novamente.');
+        }
+      } catch(e){
+        alert('Erro ao reenviar email. Faça login e tente novamente.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Reenviar e-mail';
+      }
+    }
+    document.getElementById('resendBtn').onclick = resend;
   </script>
 </body>
 </html>

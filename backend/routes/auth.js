@@ -29,14 +29,18 @@ router.post('/register', async (req, res) => {
         const rawToken = user.generateEmailVerifyToken();
         await user.save();
 
-        const frontendUrl = process.env.FRONTEND_URL || 'http://127.0.0.1:5500';
+        const frontendUrl = (process.env.FRONTEND_URL || 'http://127.0.0.1:5500').replace(/\/$/, '');
+        const backendUrl = (process.env.BACKEND_PUBLIC_URL || 'http://localhost:5000').replace(/\/$/, '');
         const verifyLink = `${frontendUrl}/pages/verify-email.html?token=${rawToken}`;
+        const apiVerifyLink = `${backendUrl}/api/auth/verify-email?token=${rawToken}`;
         const html = `
             <p>Olá, ${user.name || 'usuário'}</p>
             <p>Bem-vindo ao Eventflow! Para ativar sua conta, clique no link abaixo:</p>
             <p><a href="${verifyLink}" target="_blank">Confirmar email</a></p>
             <p>Ou copie este token para confirmar:</p>
             <pre style="padding:12px;border:1px solid #ddd;border-radius:6px;background:#f7f7f7;">${rawToken}</pre>
+            <p>Confirmação direta (caso o link acima não funcione):</p>
+            <p><a href="${apiVerifyLink}" target="_blank">Confirmar via API</a></p>
             <p>Este token expira em 24 horas.</p>
         `;
         try { await sendMail({ to: email, subject: 'Eventflow - Confirmação de email', html }); } catch(_) {}
@@ -219,6 +223,57 @@ router.post('/verify-email', async (req, res) => {
         return res.json({ message: 'Email confirmado com sucesso' });
     } catch (error) {
         console.error('Erro em verify-email:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
+
+// Verificação por email via token (GET para links diretos)
+router.get('/verify-email', async (req, res) => {
+    try {
+        const token = req.query.token;
+        if (!token) return res.status(400).json({ error: 'Token é obrigatório' });
+        const hashed = crypto.createHash('sha256').update(String(token)).digest('hex');
+        const now = Date.now();
+        const user = await User.findOne({ emailVerifyTokenHash: hashed, emailVerifyExpires: { $gt: now } });
+        if (!user) return res.status(400).json({ error: 'Token inválido ou expirado' });
+        user.isVerified = true;
+        user.emailVerifyTokenHash = null;
+        user.emailVerifyExpires = null;
+        await user.save();
+        const frontendUrl = (process.env.FRONTEND_URL || 'http://127.0.0.1:5500').replace(/\/$/, '');
+        return res.redirect(`${frontendUrl}/login-firebase.html?verified=1`);
+    } catch (error) {
+        console.error('Erro em verify-email (GET):', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
+
+// Reenviar token de verificação por email
+router.post('/resend-email-verification', authMiddleware, async (req, res) => {
+    try {
+        const user = req.user;
+        if (!user) return res.status(401).json({ error: 'Não autorizado' });
+        if (user.isVerified === true) return res.status(400).json({ error: 'Conta já verificada' });
+        const rawToken = user.generateEmailVerifyToken();
+        await user.save();
+        const frontendUrl = (process.env.FRONTEND_URL || 'http://127.0.0.1:5500').replace(/\/$/, '');
+        const backendUrl = (process.env.BACKEND_PUBLIC_URL || 'http://localhost:5000').replace(/\/$/, '');
+        const verifyLink = `${frontendUrl}/pages/verify-email.html?token=${rawToken}`;
+        const apiVerifyLink = `${backendUrl}/api/auth/verify-email?token=${rawToken}`;
+        const html = `
+            <p>Olá, ${user.name || 'usuário'}</p>
+            <p>Segue seu novo link de confirmação:</p>
+            <p><a href="${verifyLink}" target="_blank">Confirmar email</a></p>
+            <p>Token:</p>
+            <pre style="padding:12px;border:1px solid #ddd;border-radius:6px;background:#f7f7f7;">${rawToken}</pre>
+            <p>Confirmação direta:</p>
+            <p><a href="${apiVerifyLink}" target="_blank">Confirmar via API</a></p>
+            <p>Expira em 24 horas.</p>
+        `;
+        try { await sendMail({ to: user.email, subject: 'Eventflow - Reenvio de confirmação de email', html }); } catch(_) {}
+        return res.json({ message: 'Email de confirmação reenviado' });
+    } catch (error) {
+        console.error('Erro em resend-email-verification:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });

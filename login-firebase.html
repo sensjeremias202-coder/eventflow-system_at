@@ -232,6 +232,9 @@
                 <span id="btnText">Entrar</span>
                 <div id="btnLoading" class="loading" style="display: none;"></div>
             </button>
+            <button type="button" class="btn" id="resendVerifyBtn" style="display:none;background:#eee;color:#333">
+                <i class="fas fa-paper-plane"></i> Reenviar e-mail de confirmação
+            </button>
         </form>
         
         <div class="links">
@@ -301,11 +304,16 @@
                     const result = await response.json();
                     if (response.ok) {
                         api.token.set(result.token);
-                        showMessage('✅ Login realizado com sucesso! Redirecionando...', 'success');
-                        setTimeout(() => {
-                            const verified = result?.user?.isVerified === true;
-                            window.location.href = verified ? 'pages/dashboard.html' : 'pages/verify-email.html';
-                        }, 1200);
+                        const verified = result?.user?.isVerified === true;
+                        if (verified) {
+                            showMessage('✅ Login realizado com sucesso! Redirecionando...', 'success');
+                            setTimeout(() => { window.location.href = 'pages/dashboard.html'; }, 1000);
+                        } else {
+                            showMessage('⚠️ Conta não verificada. Reenvie o e-mail de confirmação ou confirme com seu token.', 'error');
+                            const btn = document.getElementById('resendVerifyBtn');
+                            btn.style.display = 'block';
+                            loginBtn.disabled = false; btnText.textContent = 'Entrar'; btnLoading.style.display = 'none';
+                        }
                     } else {
                         showMessage('❌ ' + (result.error || 'Erro ao fazer login'), 'error');
                         loginBtn.disabled = false; btnText.textContent = 'Entrar'; btnLoading.style.display = 'none';
@@ -334,6 +342,28 @@
                 const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 return re.test(email);
             }
+
+            // Reenvio de confirmação de e-mail
+            async function resendVerification(){
+                const btn = document.getElementById('resendVerifyBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<span class="loading" style="border-top-color:#333"></span> Enviando...';
+                try {
+                    const res = await api.post('/auth/resend-email-verification', {}, { auth: true });
+                    const data = await res.json().catch(()=>({}));
+                    if (res.ok) {
+                        showMessage(data.message || 'Email de confirmação reenviado. Verifique sua caixa de entrada.', 'success');
+                    } else {
+                        showMessage(data.error || 'Não foi possível reenviar o email. Tente novamente.', 'error');
+                    }
+                } catch(e){
+                    showMessage('Erro ao reenviar email. Tente novamente.', 'error');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Reenviar e-mail de confirmação';
+                }
+            }
+            document.getElementById('resendVerifyBtn').addEventListener('click', resendVerification);
         });
     </script>
 </body>
