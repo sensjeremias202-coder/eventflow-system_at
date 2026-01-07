@@ -1213,22 +1213,38 @@
                 .replace(/'/g, '&#039;');
         }
 
-        // Enviar mensagem (realtime puro)
+        // Enviar mensagem (otimista + realtime)
         async function sendMessage() {
             const messageInput = document.getElementById('messageInput');
-            const message = messageInput.textContent.trim();
-            if (!message || !currentConversationId) return;
+            const text = messageInput.textContent.trim();
+            if (!text || !currentConversationId) return;
 
-            // Emitir para o servidor; UI será atualizada via eventos socket
+            // Render otimista
+            const clientId = `c_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+            const optimistic = {
+                id: clientId,
+                clientId,
+                sender: currentUser?.name || 'Você',
+                message: text,
+                time: getCurrentTime(),
+                type: 'sent',
+                status: 'sent',
+                date: 'Hoje'
+            };
+            messagesData[currentConversationId] = messagesData[currentConversationId] || [];
+            messagesData[currentConversationId].push(optimistic);
+            loadMessages(currentConversationId);
+
+            // Emitir para o servidor com clientId para deduplicar/atualizar
             try {
                 if (window.socket) {
-                    window.socket.emit('chat:message', { conversationId: currentConversationId, text: message });
+                    window.socket.emit('chat:message', { conversationId: currentConversationId, text, clientId });
                 }
             } catch (err) {
                 console.warn('Falha ao emitir mensagem realtime', err);
             }
 
-            // Limpar input e manter UX consistente (toggling dos botões)
+            // Limpar input e manter UX consistente
             messageInput.textContent = '';
             messageInput.focus();
             messageInput.dispatchEvent(new Event('input'));
@@ -1663,6 +1679,8 @@
                     transports: ['websocket'],
                     auth: { token: api.token.get() }
                 });
+                window.socket.on('connect', () => console.log('[socket] conectado'));
+                window.socket.on('connect_error', (err) => { console.warn('[socket] erro de conexão', err?.message || err); showToast('Falha ao conectar em tempo real'); });
 
                 // Receber histórico ao entrar
                 window.socket.on('chat:history', ({ conversationId, messages }) => {
@@ -1715,7 +1733,17 @@
                         date: 'Hoje'
                     };
                     messagesData[conversationId] = messagesData[conversationId] || [];
-                    messagesData[conversationId].push(msg);
+                    // Deduplicar/atualizar mensagem otimista do remetente
+                    if (message.clientId) {
+                        const idx = messagesData[conversationId].findIndex(m => m.clientId === message.clientId);
+                        if (idx >= 0) {
+                            messagesData[conversationId][idx] = { ...messagesData[conversationId][idx], ...msg, clientId: message.clientId };
+                        } else {
+                            messagesData[conversationId].push({ ...msg, clientId: message.clientId });
+                        }
+                    } else {
+                        messagesData[conversationId].push(msg);
+                    }
                     // Atualiza preview e badges na lista de conversas
                     const conv = conversationsData.find(c => String(c.id) === String(conversationId));
                     if (conv) {

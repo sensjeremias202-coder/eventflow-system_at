@@ -143,7 +143,7 @@ io.on('connection', (socket) => {
     });
 
     // Nova mensagem
-    socket.on('chat:message', ({ conversationId, text }) => {
+    socket.on('chat:message', ({ conversationId, text, clientId }) => {
         if (!conversationId || !text) return;
         const msg = {
             id: Date.now(),
@@ -151,7 +151,8 @@ io.on('connection', (socket) => {
             senderName: socket.user.name || socket.user.email,
             text: String(text),
             time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            status: 'delivered'
+            status: 'delivered',
+            clientId: clientId || null
         };
         chatStore.messages[String(conversationId)] = chatStore.messages[String(conversationId)] || [];
         chatStore.messages[String(conversationId)].push(msg);
