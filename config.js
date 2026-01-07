@@ -41,6 +41,14 @@
     var isLocal = /^(localhost|127\.0\.0\.1)$/i.test(String(host));
     window.API_BASE_URL = isLocal ? 'http://localhost:5000' : 'https://eventflow-system.onrender.com';
     console.log('[Config] API via ambiente:', window.API_BASE_URL, 'Host:', host);
+    // Define GOOGLE_CLIENT_ID padrão em produção caso não esteja setado
+    if (!isLocal) {
+      var defaultProdGoogleClientId = '659805758572-mmkqsk3oib6r63mpone8e716bjceu8qq.apps.googleusercontent.com';
+      if (!window.GOOGLE_CLIENT_ID) {
+        window.GOOGLE_CLIENT_ID = defaultProdGoogleClientId;
+        console.log('[Config] GOOGLE_CLIENT_ID (prod):', window.GOOGLE_CLIENT_ID);
+      }
+    }
   } catch (e) {
     window.API_BASE_URL = 'https://eventflow-system.onrender.com';
   }
