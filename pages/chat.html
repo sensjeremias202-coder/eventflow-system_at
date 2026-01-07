@@ -1472,8 +1472,8 @@
                     startBtn.disabled = !selectedUserId;
                     startBtn.onclick = () => {
                         if (!selectedUserId) return;
-                        const user = users.find(x => String(x._id) === String(selectedUserId));
-                        if (user) createDMConversation(user);
+                        // Usa criação por ID para evitar dependência do array atual
+                        createDMConversationById(selectedUserId);
                     };
                 }
             } catch (err) {
@@ -1520,6 +1520,42 @@
                 showToast('Conversa com usuário criada!');
             } catch (err) {
                 console.error('Falha ao criar DM', err);
+                showToast('Erro ao criar conversa');
+            }
+        }
+
+        async function createDMConversationById(userId) {
+            if (!userId) return;
+            try {
+                const res = await api.post('/chat/conversations/dm', { userId }, { auth: true });
+                if (!res.ok) {
+                    const msg = 'Falha ao criar DM';
+                    try { const body = await res.json(); showToast(body?.error || msg); } catch(_) { showToast(msg); }
+                    return;
+                }
+                const data = await res.json();
+                const conv = data.conversation;
+                const existing = conversationsData.find(c => String(c.id) === String(conv._id));
+                if (!existing) {
+                    conversationsData.unshift({
+                        id: conv._id,
+                        name: conv.name,
+                        lastMessage: 'Conversa iniciada',
+                        time: 'Agora',
+                        unread: 0,
+                        participants: [],
+                        eventId: null,
+                        isGroup: false,
+                        online: true
+                    });
+                }
+                messagesData[conv._id] = messagesData[conv._id] || [];
+                loadConversations();
+                selectConversation(conv._id);
+                closeModal();
+                showToast('DM criada com sucesso!');
+            } catch (err) {
+                console.error('Falha ao criar DM por ID', err);
                 showToast('Erro ao criar conversa');
             }
         }
