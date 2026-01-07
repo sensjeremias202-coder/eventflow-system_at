@@ -1211,59 +1211,13 @@
                 .replace(/'/g, '&#039;');
         }
 
-        // Enviar mensagem
+        // Enviar mensagem (realtime puro)
         async function sendMessage() {
             const messageInput = document.getElementById('messageInput');
             const message = messageInput.textContent.trim();
-            
             if (!message || !currentConversationId) return;
 
-            // Criar objeto de mensagem
-            const newMessage = {
-                id: Date.now(),
-                sender: currentUser?.name || 'João Silva',
-                message: message,
-                time: getCurrentTime(),
-                type: "sent",
-                status: "sent",
-                date: "Hoje"
-            };
-
-            // Adicionar aos dados
-            if (!messagesData[currentConversationId]) {
-                messagesData[currentConversationId] = [];
-            }
-            messagesData[currentConversationId].push(newMessage);
-
-            // Atualizar última mensagem na conversa
-            const conversation = conversationsData.find(c => c.id == currentConversationId);
-            if (conversation) {
-                conversation.lastMessage = message;
-                conversation.time = "Agora";
-                conversation.unread = 0;
-            }
-
-            // Atualizar interface
-            loadMessages(currentConversationId);
-            loadConversations();
-
-            // Limpar input
-            messageInput.textContent = '';
-            messageInput.focus();
-
-            // Simular envio para servidor
-            setTimeout(() => {
-                newMessage.status = "delivered";
-                updateMessageStatus(newMessage.id, "delivered");
-                
-                // Simular leitura após 2 segundos
-                setTimeout(() => {
-                    newMessage.status = "read";
-                    updateMessageStatus(newMessage.id, "read");
-                }, 2000);
-            }, 1000);
-
-            // Realtime: enviar para o servidor
+            // Emitir para o servidor; UI será atualizada via eventos socket
             try {
                 if (window.socket) {
                     window.socket.emit('chat:message', { conversationId: currentConversationId, text: message });
@@ -1272,22 +1226,10 @@
                 console.warn('Falha ao emitir mensagem realtime', err);
             }
 
-            // Simular resposta automática se for grupo
-            if (conversation?.isGroup) {
-                setTimeout(() => {
-                    const autoReply = {
-                        id: Date.now() + 1,
-                        sender: conversation.participants.find(p => p !== (currentUser?.name || 'João Silva')) || "Participante",
-                        message: "Mensagem recebida!",
-                        time: getCurrentTime(),
-                        type: "received",
-                        status: "read"
-                    };
-
-                    messagesData[currentConversationId].push(autoReply);
-                    loadMessages(currentConversationId);
-                }, 3000);
-            }
+            // Limpar input e manter UX consistente (toggling dos botões)
+            messageInput.textContent = '';
+            messageInput.focus();
+            messageInput.dispatchEvent(new Event('input'));
         }
 
         // Atualizar status da mensagem
@@ -1767,16 +1709,23 @@
                     };
                     messagesData[conversationId] = messagesData[conversationId] || [];
                     messagesData[conversationId].push(msg);
+                    // Atualiza preview e badges na lista de conversas
+                    const conv = conversationsData.find(c => String(c.id) === String(conversationId));
+                    if (conv) {
+                        conv.lastMessage = message.text;
+                        conv.time = 'Agora';
+                    }
                     if (String(conversationId) === String(currentConversationId)) {
                         loadMessages(currentConversationId);
+                        // conversa ativa: marca como lida
+                        if (conv) { conv.unread = 0; }
                     } else {
                         // incrementa badge da conversa não ativa
-                        const conv = conversationsData.find(c => String(c.id) === String(conversationId));
-                        if (conv) {
-                            conv.unread = (conv.unread || 0) + 1;
-                            updateConversationBadge(conversationId);
-                        }
+                        if (conv) { conv.unread = (conv.unread || 0) + 1; }
+                        updateConversationBadge(conversationId);
                     }
+                    // Re-renderiza lista para refletir última mensagem/tempo
+                    loadConversations();
                 });
 
                 // Indicador de digitação
@@ -1808,6 +1757,7 @@
                 console.warn('Falha ao conectar Socket.IO', err);
             }
 
+            const backBtn = document.getElementById('backBtn');
             if (backBtn) backBtn.addEventListener('click', backToHome);
             // Botão voltar
             document.getElementById('backToListBtn').addEventListener('click', () => {
@@ -1817,6 +1767,10 @@
             document.getElementById('tabEventsBtn').addEventListener('click', loadEventsForNewChat);
             document.getElementById('modalBackBtn').addEventListener('click', closeModal);
             document.getElementById('sendMessageBtn').addEventListener('click', sendMessage);
+            const onlyToggle = document.getElementById('onlyOnlineToggle');
+            if (onlyToggle) {
+                onlyToggle.addEventListener('change', () => loadUsersForNewChat(true));
+            }
 
             // Inicialização estado voice/send
             const messageInput = document.getElementById('messageInput');
@@ -2010,12 +1964,7 @@
             setTimeout(() => indicator.remove(), 1500);
         }
 
-        // Exemplo: mostrar indicador antes da resposta automática
-        const _origSendMessage = sendMessage;
-        sendMessage = async function() {
-            await _origSendMessage();
-            showTypingIndicator();
-        };
+        // Mantém indicador apenas para eventos recebidos (ver socket 'chat:typing')
     </script>
 </body>
 </html>
