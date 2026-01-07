@@ -103,6 +103,20 @@ io.on('connection', (socket) => {
     // Broadcast presença inicial
     io.emit('presence:update', { userId: String(socket.user._id), online: true, lastSeen: null });
 
+    // Auto-join: ao conectar, entrar em todas as conversas do usuário
+    (async () => {
+        try {
+            const me = String(socket.user._id);
+            const myConversations = await Conversation.find({ participantId: me });
+            (myConversations || []).forEach(c => {
+                const roomId = String(c._id || '');
+                if (roomId) socket.join(roomId);
+            });
+        } catch (e) {
+            // Ignorar erros silenciosamente para não interromper conexão
+        }
+    })();
+
     // Entrar em uma conversa/sala
     socket.on('chat:join', ({ conversationId }) => {
         if (!conversationId) return;
