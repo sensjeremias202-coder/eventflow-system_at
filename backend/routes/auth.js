@@ -25,24 +25,24 @@ router.post('/register', async (req, res) => {
             role: role || 'participante'
         });
         
+        // Gerar token de verificação por email e enviar
+        const rawToken = user.generateEmailVerifyToken();
         await user.save();
-        
-        // Gera token JWT
-        const token = jwt.sign(
-            { userId: user._id },
-            process.env.JWT_SECRET,
-            { expiresIn: '7d' }
-        );
-        
+
+        const frontendUrl = process.env.FRONTEND_URL || 'http://127.0.0.1:5500';
+        const verifyLink = `${frontendUrl}/pages/verify-email.html?token=${rawToken}`;
+        const html = `
+            <p>Olá, ${user.name || 'usuário'}</p>
+            <p>Bem-vindo ao Eventflow! Para ativar sua conta, clique no link abaixo:</p>
+            <p><a href="${verifyLink}" target="_blank">Confirmar email</a></p>
+            <p>Ou copie este token para confirmar:</p>
+            <pre style="padding:12px;border:1px solid #ddd;border-radius:6px;background:#f7f7f7;">${rawToken}</pre>
+            <p>Este token expira em 24 horas.</p>
+        `;
+        try { await sendMail({ to: email, subject: 'Eventflow - Confirmação de email', html }); } catch(_) {}
+
         res.status(201).json({
-            message: 'Usuário criado com sucesso',
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role
-            },
-            token
+            message: 'Usuário criado. Verifique seu email para confirmar a conta.'
         });
     } catch (error) {
         console.error('Erro no registro:', error);
@@ -202,6 +202,26 @@ router.post('/logout', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+
+// Verificação por email via token
+router.post('/verify-email', async (req, res) => {
+    try {
+        const { token } = req.body;
+        if (!token) return res.status(400).json({ error: 'Token é obrigatório' });
+        const hashed = crypto.createHash('sha256').update(String(token)).digest('hex');
+        const now = Date.now();
+        const user = await User.findOne({ emailVerifyTokenHash: hashed, emailVerifyExpires: { $gt: now } });
+        if (!user) return res.status(400).json({ error: 'Token inválido ou expirado' });
+        user.isVerified = true;
+        user.emailVerifyTokenHash = null;
+        user.emailVerifyExpires = null;
+        await user.save();
+        return res.json({ message: 'Email confirmado com sucesso' });
+    } catch (error) {
+        console.error('Erro em verify-email:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
 
 // Recuperação de senha: solicitar token
 router.post('/forgot-password', async (req, res) => {

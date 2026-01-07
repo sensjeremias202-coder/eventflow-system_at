@@ -302,7 +302,10 @@
                     if (response.ok) {
                         api.token.set(result.token);
                         showMessage('✅ Login realizado com sucesso! Redirecionando...', 'success');
-                        setTimeout(() => { window.location.href = 'pages/dashboard.html'; }, 1200);
+                        setTimeout(() => {
+                            const verified = result?.user?.isVerified === true;
+                            window.location.href = verified ? 'pages/dashboard.html' : 'pages/verify-email.html';
+                        }, 1200);
                     } else {
                         showMessage('❌ ' + (result.error || 'Erro ao fazer login'), 'error');
                         loginBtn.disabled = false; btnText.textContent = 'Entrar'; btnLoading.style.display = 'none';

@@ -122,10 +122,8 @@
                     const res = await api.post('/auth/register', { name, email, password });
                     const data = await res.json();
                     if (res.ok) {
-                        api.token.set(data.token);
-                        // Verificação desativada: seguir direto para dashboard
-                        showMessage('✅ Conta criada com sucesso! Redirecionando...', 'success');
-                        setTimeout(() => { window.location.href = 'pages/dashboard.html'; }, 1200);
+                        showMessage('✅ Conta criada! Verifique seu email para ativar.', 'success');
+                        setTimeout(() => { window.location.href = 'login-firebase.html'; }, 1500);
                     } else {
                         showMessage('❌ ' + (data.error || 'Erro ao criar conta'), 'error');
                         btn.disabled = false; btnText.textContent = 'Criar conta'; btnLoading.style.display = 'none';

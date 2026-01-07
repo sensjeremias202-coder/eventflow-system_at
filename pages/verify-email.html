@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirmar Email - Eventflow</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="../styles.css">
+  <script src="../config.js"></script>
+  <script src="../api.js"></script>
+  <style>
+    .verify-container { max-width: 520px; margin: 10vh auto; background:#fff; border-radius:16px; box-shadow:0 12px 32px rgba(0,0,0,.12); padding:24px; }
+    .verify-header { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  </style>
+</head>
+<body>
+  <div class="verify-container">
+    <div class="verify-header">
+      <i class="fas fa-envelope-open"></i>
+      <h2 style="margin:0">Confirmação de Email</h2>
+    </div>
+    <p id="info">Se você acabou de se cadastrar, verifique seu email e clique no link para confirmar.
+      Se recebeu um token, cole abaixo e confirme:</p>
+    <div class="form-group" style="margin-top:8px">
+      <label for="token"><i class="fas fa-key"></i> Token</label>
+      <input type="text" id="token" placeholder="cole seu token" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:8px" />
+    </div>
+    <div class="actions" style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+      <button class="btn btn-primary" id="confirmBtn"><i class="fas fa-check"></i> Confirmar</button>
+    </div>
+  </div>
+  <script>
+    function getQueryParam(name){
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
+    async function confirm(){
+      const token = document.getElementById('token').value.trim();
+      if (!token) { alert('Informe o token'); return; }
+      try {
+        const res = await api.post('/auth/verify-email', { token });
+        const data = await res.json().catch(()=>({}));
+        if (res.ok) {
+          alert('Email confirmado com sucesso! Faça login para continuar.');
+          window.location.href = '../login-firebase.html';
+        } else {
+          alert(data.error || 'Token inválido ou expirado');
+        }
+      } catch(e){ alert('Erro ao confirmar'); }
+    }
+    document.getElementById('confirmBtn').onclick = confirm;
+    const qToken = getQueryParam('token');
+    if (qToken) {
+      document.getElementById('token').value = qToken;
+    }
+  </script>
+</body>
+</html>

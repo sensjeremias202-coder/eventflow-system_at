@@ -35,6 +35,8 @@ if (useMemory) {
             this.successRate = obj.successRate ?? 0;
             this.resetPasswordToken = obj.resetPasswordToken || null;
             this.resetPasswordExpires = obj.resetPasswordExpires || null;
+            this.emailVerifyTokenHash = obj.emailVerifyTokenHash || null;
+            this.emailVerifyExpires = obj.emailVerifyExpires || null;
             this.createdAt = obj.createdAt || new Date();
             this.updatedAt = obj.updatedAt || new Date();
         }
@@ -71,6 +73,14 @@ if (useMemory) {
             this.verificationMethod = method;
             this.verificationExpires = Date.now() + 10 * 60 * 1000; // 10 min
             return code;
+        }
+
+        generateEmailVerifyToken() {
+            const raw = crypto.randomBytes(32).toString('hex');
+            const hashed = crypto.createHash('sha256').update(raw).digest('hex');
+            this.emailVerifyTokenHash = hashed;
+            this.emailVerifyExpires = Date.now() + 24 * 60 * 60 * 1000; // 24h
+            return raw;
         }
 
         static async findOne(query) {
@@ -204,6 +214,9 @@ const userSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
+    // Verificação por email via token
+    emailVerifyTokenHash: { type: String, default: null },
+    emailVerifyExpires: { type: Date, default: null },
     createdAt: {
         type: Date,
         default: Date.now
@@ -240,6 +253,16 @@ userSchema.methods.generatePasswordReset = function() {
     // expira em 1 hora
     this.resetPasswordExpires = Date.now() + 60 * 60 * 1000;
     return rawToken;
+};
+
+// Gera token de verificação de email (retorna token em texto puro)
+userSchema.methods.generateEmailVerifyToken = function() {
+    const raw = crypto.randomBytes(32).toString('hex');
+    const hashed = crypto.createHash('sha256').update(raw).digest('hex');
+    this.emailVerifyTokenHash = hashed;
+    // expira em 24 horas
+    this.emailVerifyExpires = Date.now() + 24 * 60 * 60 * 1000;
+    return raw;
 };
 
 // Atualizar updatedAt antes de salvar

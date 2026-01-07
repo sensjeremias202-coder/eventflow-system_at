@@ -30,8 +30,19 @@
   }
 
   async function requireVerified(){
-    // Verificação desativada: sempre permitir
-    return true;
+    try {
+      const res = await apiFetch('/auth/profile', { method: 'GET' }, { auth: true });
+      if (!res.ok) return false;
+      const data = await res.json();
+      const user = data && data.user ? data.user : {};
+      if (user.isVerified !== true) {
+        try { location.href = 'pages/verify-email.html'; } catch(_) {}
+        return false;
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   const api = {
