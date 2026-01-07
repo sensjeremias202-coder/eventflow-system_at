@@ -813,16 +813,20 @@
                 </div>
             </div>
             <div class="messages-container" style="background: white; padding: 0;">
-                <div style="display:flex; gap:8px; padding:10px 16px; border-bottom:1px solid #eee;">
+                <div style="display:flex; gap:8px; padding:10px 16px; border-bottom:1px solid #eee; align-items:center;">
                     <button class="chat-action-btn" id="tabUsersBtn" title="Usuários" style="background:#e9edef;border-radius:6px;width:auto;height:auto;padding:6px 10px;color:#111b21;font-size:14px;">Usuários</button>
                     <button class="chat-action-btn" id="tabEventsBtn" title="Eventos" style="background:#e9edef;border-radius:6px;width:auto;height:auto;padding:6px 10px;color:#111b21;font-size:14px;">Eventos</button>
+                    <label style="margin-left:auto; display:flex; align-items:center; gap:6px; color:#667781; font-size:13px;">
+                        <input type="checkbox" id="onlyOnlineToggle" checked>
+                        Apenas online
+                    </label>
                 </div>
                 <div class="event-list" id="eventList" style="padding: 16px;">
                     <!-- Lista dinâmica: usuários ou eventos -->
                 </div>
                 <div style="display:flex; justify-content:flex-end; gap:8px; padding:10px 16px; border-top:1px solid #eee; background:#fafafa;">
                     <button class="chat-action-btn" id="startDmBtn" title="Iniciar conversa" style="background: var(--whatsapp-green); color: white; border-radius:6px; width:auto; height:auto; padding:6px 12px; font-size:14px;" disabled>
-                        <i class="fas fa-paper-plane" style="margin-right:6px;"></i> Iniciar DM
+                        <i class="fas fa-paper-plane" style="margin-right:6px;"></i> Criar conversa
                     </button>
                 </div>
             </div>
@@ -942,7 +946,8 @@
         let currentConversationId = null;
         let currentUser = null;
         const messagesPages = {};
-        let selectedUserId = null;
+        let selectedUserId = null; // compatibilidade (seleção única)
+        let selectedUserIds = new Set();
 
         // Carregar informações do usuário
         async function loadUserInfo() {
@@ -1394,7 +1399,8 @@
             const list = document.getElementById('eventList');
             if (reset) {
               usersPage = 1;
-                            selectedUserId = null;
+                      selectedUserId = null;
+                      selectedUserIds = new Set();
               list.innerHTML = `
                 <div style="padding: 20px; text-align: center;">
                     <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: var(--whatsapp-icon);"></i>
@@ -1410,12 +1416,17 @@
                                 if (currentUser?._id) {
                                         users = users.filter(u => String(u._id) !== String(currentUser._id));
                                 }
+                        // Filtrar apenas online se toggle marcado
+                        const onlyOnlineEl = document.getElementById('onlyOnlineToggle');
+                        const onlyOnline = onlyOnlineEl ? onlyOnlineEl.checked : false;
+                        if (onlyOnline) users = users.filter(u => !!u.online);
                 if (users.length === 0) {
                     if (reset) list.innerHTML = '<p style="padding:16px;color:#667781;">Nenhum usuário encontrado.</p>';
                     return;
                 }
-                const items = users.map(u => `
-                    <div class="conversation-item" data-user-id="${u._id}" style="cursor: pointer;">
+                        const items = users.map(u => `
+                            <div class="conversation-item" data-user-id="${u._id}" style="cursor: pointer; display:flex; align-items:center; gap:10px;">
+                                <input type="checkbox" class="user-select-checkbox" aria-label="Selecionar usuário" ${selectedUserIds.has(String(u._id)) ? 'checked' : ''}>
                         <div class="conversation-avatar">
                             <div class="conversation-avatar-img">${escapeHTML(String(u.name || u.email || '?')).charAt(0)}</div>
                             ${u.online ? '<div class="online-status"></div>' : ''}
@@ -1439,15 +1450,19 @@
                 list.querySelectorAll('.conversation-item').forEach(item => {
                     item.addEventListener('click', (e) => {
                         if (!e.target.closest('.chat-action-btn')) {
-                            // Seleciona o usuário para iniciar DM via botão
                             const uid = item.dataset.userId;
-                            selectedUserId = uid;
-                            // Atualiza destaque visual
-                            list.querySelectorAll('.conversation-item').forEach(i => i.classList.remove('active'));
-                            item.classList.add('active');
-                            // Habilita botão de iniciar DM
+                            // Toggle seleção múltipla
+                            const key = String(uid);
+                            if (selectedUserIds.has(key)) selectedUserIds.delete(key); else selectedUserIds.add(key);
+                            // Mantém compatibilidade de seleção única
+                            selectedUserId = key;
+                            // Atualiza UI
+                            const cb = item.querySelector('.user-select-checkbox');
+                            if (cb) cb.checked = selectedUserIds.has(key);
+                            item.classList.toggle('active', selectedUserIds.has(key));
+                            // Habilita botão
                             const startBtn = document.getElementById('startDmBtn');
-                            if (startBtn) startBtn.disabled = !selectedUserId;
+                            if (startBtn) startBtn.disabled = selectedUserIds.size === 0;
                         }
                     });
                     const btn = item.querySelector('.chat-action-btn');
@@ -1474,14 +1489,20 @@
                 // Ação do botão Iniciar DM
                 const startBtn = document.getElementById('startDmBtn');
                 if (startBtn) {
-                    startBtn.disabled = !selectedUserId;
+                    startBtn.disabled = selectedUserIds.size === 0;
                     startBtn.onclick = async () => {
-                        if (!selectedUserId) return;
+                        if (selectedUserIds.size === 0) return;
                         startBtn.disabled = true;
                         const original = startBtn.innerHTML;
-                        startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Iniciando...';
+                        startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando...';
                         try {
-                            await createDMConversationById(selectedUserId);
+                            if (selectedUserIds.size === 1) {
+                                const [onlyId] = Array.from(selectedUserIds);
+                                await createDMConversationById(onlyId);
+                            } else {
+                                const ids = Array.from(selectedUserIds);
+                                await createGroupConversationByIds(ids);
+                            }
                         } finally {
                             startBtn.innerHTML = original;
                             startBtn.disabled = false;
@@ -1569,6 +1590,45 @@
             } catch (err) {
                 console.error('Falha ao criar DM por ID', err);
                 showToast('Erro ao criar conversa');
+            }
+        }
+
+        async function createGroupConversationByIds(userIds) {
+            if (!Array.isArray(userIds) || userIds.length < 2) {
+                return showToast('Selecione 2 ou mais usuários');
+            }
+            try {
+                const title = 'Conversa';
+                const res = await api.post('/chat/conversations/group', { userIds, title }, { auth: true });
+                if (!res.ok) {
+                    const msg = 'Falha ao criar conversa de grupo';
+                    try { const body = await res.json(); showToast(body?.error || msg); } catch(_) { showToast(msg); }
+                    return;
+                }
+                const data = await res.json();
+                const conv = data.conversation;
+                const existing = conversationsData.find(c => String(c.id) === String(conv._id));
+                if (!existing) {
+                    conversationsData.unshift({
+                        id: conv._id,
+                        name: conv.name || 'Grupo',
+                        lastMessage: 'Conversa criada',
+                        time: 'Agora',
+                        unread: 0,
+                        participants: [],
+                        eventId: null,
+                        isGroup: true,
+                        online: false
+                    });
+                }
+                messagesData[conv._id] = messagesData[conv._id] || [];
+                loadConversations();
+                selectConversation(conv._id);
+                closeModal();
+                showToast('Conversa de grupo criada!');
+            } catch (err) {
+                console.error('Falha ao criar conversa de grupo', err);
+                showToast('Erro ao criar conversa de grupo');
             }
         }
 

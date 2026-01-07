@@ -145,4 +145,40 @@ router.post('/conversations/event', authMiddleware, async (req, res) => {
   }
 });
 
+// Criar conversa de grupo com usuários selecionados
+router.post('/conversations/group', authMiddleware, async (req, res) => {
+  try {
+    const me = String(req.user._id);
+    const userIds = Array.isArray(req.body.userIds) ? req.body.userIds.map(String) : [];
+    const title = String(req.body.title || '').trim();
+    const participants = [...new Set([me, ...userIds.filter(id => id && id !== me)])];
+    if (participants.length < 2) {
+      return res.status(400).json({ error: 'Selecione ao menos 1 usuário' });
+    }
+    const conv = new Conversation({ type: 'group', title: title || 'Conversa', participants });
+    await conv.save();
+
+    // Auto-join participantes conectados
+    try {
+      const io = req.app.get('io');
+      if (io && io.sockets && io.sockets.sockets) {
+        const roomId = String(conv._id);
+        io.sockets.sockets.forEach((s) => {
+          try {
+            const uid = String(s.user?._id || '');
+            if ((conv.participants || []).some(p => String(p) === uid)) {
+              s.join(roomId);
+            }
+          } catch (_) {}
+        });
+      }
+    } catch (_) {}
+
+    res.json({ conversation: { _id: conv._id, name: conv.title || 'Conversa', isGroup: true } });
+  } catch (err) {
+    console.error('Erro ao criar conversa de grupo:', err);
+    res.status(500).json({ error: 'Falha ao criar conversa de grupo' });
+  }
+});
+
 module.exports = router;
