@@ -358,4 +358,26 @@ router.post('/reset-password', async (req, res) => {
     }
 });
 
+// Testar envio de e-mail SMTP
+router.post('/test-email', async (req, res) => {
+    try {
+        const { to } = req.body || {};
+        if (!to) return res.status(400).json({ error: 'Destinatário (to) é obrigatório' });
+        const html = `
+            <p>Teste de envio SMTP do Eventflow.</p>
+            <p>Se você está lendo isto, o SMTP está funcionando.</p>
+        `;
+        try {
+            const r = await sendMail({ to, subject: 'Eventflow - Teste SMTP', html });
+            return res.json({ message: 'Email enviado', info: r && r.messageId ? { messageId: r.messageId } : {} });
+        } catch (e) {
+            console.error('Erro ao enviar email de teste:', e && e.message ? e.message : e);
+            return res.status(500).json({ error: 'Falha ao enviar email', details: e && e.message ? e.message : String(e) });
+        }
+    } catch (error) {
+        console.error('Erro em test-email:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
+
  
