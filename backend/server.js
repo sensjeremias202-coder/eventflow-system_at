@@ -110,7 +110,7 @@ io.on('connection', (socket) => {
     (async () => {
         try {
             const me = String(socket.user._id);
-            const myConversations = await Conversation.find({ participantId: me });
+                const myConversations = await Conversation.find({ participants: me });
             (myConversations || []).forEach(c => {
                 const roomId = String(c._id || '');
                 if (roomId) socket.join(roomId);

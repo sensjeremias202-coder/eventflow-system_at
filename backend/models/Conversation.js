@@ -35,6 +35,15 @@ if (useMemory) {
       if (filter.type) list = list.filter(c => c.type === filter.type);
       if (filter.eventId) list = list.filter(c => String(c.eventId) === String(filter.eventId));
       if (filter.participantId) list = list.filter(c => c.participants.includes(String(filter.participantId)));
+      // compatibilidade com consultas Mongoose: { participants: userId } ou { participants: { $in: [userId] } }
+      if (filter.participants) {
+        if (typeof filter.participants === 'string') {
+          list = list.filter(c => c.participants.includes(String(filter.participants)));
+        } else if (filter.participants && typeof filter.participants === 'object' && Array.isArray(filter.participants.$in)) {
+          const set = new Set(filter.participants.$in.map(String));
+          list = list.filter(c => c.participants.some(p => set.has(String(p))));
+        }
+      }
       return list.map(c => new Conversation(c));
     }
 

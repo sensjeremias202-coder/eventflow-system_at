@@ -13,7 +13,7 @@ router.get('/conversations', authMiddleware, async (req, res) => {
     const me = String(req.user._id);
     let convs = [];
     // memory-mode and mongoose both expose find()
-    convs = await Conversation.find({ participantId: me });
+    convs = await Conversation.find({ participants: me });
 
     // Montar payload com último preview
     const result = [];
