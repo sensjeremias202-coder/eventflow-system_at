@@ -1656,7 +1656,7 @@
             await fetchRealConversations();
             // Conectar Socket.IO
             try {
-                const base = (typeof window.API_BASE_URL !== 'undefined' && window.API_BASE_URL) ? window.API_BASE_URL : '';
+                const base = (window.api && window.api.url) ? window.api.url : ((typeof window.API_BASE_URL !== 'undefined' && window.API_BASE_URL) ? window.API_BASE_URL : '');
                 window.socket = io(base, {
                     transports: ['websocket'],
                     auth: { token: api.token.get() }
