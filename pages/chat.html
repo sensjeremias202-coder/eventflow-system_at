@@ -1253,7 +1253,8 @@
         function showNewChatModal() {
             const modal = document.getElementById('newChatModal');
             modal.classList.add('active');
-            loadEventsForNewChat();
+            // Por padrão, abrir na aba Usuários
+            try { loadUsersForNewChat(true); } catch(_) { loadEventsForNewChat(); }
             // Acessibilidade: foco inicial no back
             const back = document.getElementById('modalBackBtn');
             if (back) back.focus();
@@ -1770,6 +1771,14 @@
             const onlyToggle = document.getElementById('onlyOnlineToggle');
             if (onlyToggle) {
                 onlyToggle.addEventListener('change', () => loadUsersForNewChat(true));
+            }
+            const newChatBtn = document.getElementById('newChatBtn');
+            if (newChatBtn) {
+                newChatBtn.addEventListener('click', () => {
+                    showNewChatModal();
+                    // Garante que a lista atual seja de usuários ao abrir
+                    loadUsersForNewChat(true);
+                });
             }
 
             // Inicialização estado voice/send
