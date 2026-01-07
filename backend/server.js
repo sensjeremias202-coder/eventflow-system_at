@@ -165,7 +165,9 @@ io.on('connection', (socket) => {
             status: msg.status
         });
         cm.save().catch(()=>{});
-        io.to(String(conversationId)).emit('chat:message', { conversationId, message: msg });
+        // Eco imediato para o remetente, e broadcast para os demais na sala
+        socket.emit('chat:message', { conversationId, message: msg });
+        socket.to(String(conversationId)).emit('chat:message', { conversationId, message: msg });
     });
 
     // Marcar mensagens como lidas (read receipts)
