@@ -12,6 +12,7 @@ if (useMemory) {
       this.type = obj.type || 'dm'; // 'dm' | 'group'
       this.title = obj.title || '';
       this.participants = Array.isArray(obj.participants) ? obj.participants.map(String) : [];
+      this.members = Array.isArray(obj.members) ? obj.members.map(m => ({ userId: String(m.userId), status: m.status || 'accepted' })) : [];
       this.eventId = obj.eventId ? String(obj.eventId) : null;
       this.createdAt = obj.createdAt || new Date();
       this.updatedAt = obj.updatedAt || new Date();
@@ -51,6 +52,11 @@ if (useMemory) {
       const [a, b] = [String(userA), String(userB)].sort();
       return conversations.find(c => c.type === 'dm' && c.participants.includes(a) && c.participants.includes(b));
     }
+
+    static async findInvitesFor(userId){
+      const uid = String(userId);
+      return conversations.filter(c => Array.isArray(c.members) && c.members.some(m => String(m.userId) === uid && m.status === 'pending')).map(c => new Conversation(c));
+    }
   }
 
   module.exports = Conversation;
@@ -61,11 +67,25 @@ const conversationSchema = new mongoose.Schema({
   type: { type: String, enum: ['dm', 'group'], default: 'dm' },
   title: { type: String },
   participants: [{ type: String }],
+  members: [{ userId: String, status: { type: String, enum: ['pending','accepted','declined'], default: 'accepted' } }],
   eventId: { type: String, default: null },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
 
 conversationSchema.pre('save', function(next){ this.updatedAt = Date.now(); next(); });
+
+// Métodos estáticos adicionais (compatibilidade com rotas existentes)
+conversationSchema.statics.findDM = async function(userA, userB){
+  const a = String(userA);
+  const b = String(userB);
+  // encontra conversa DM que contenha ambos os participantes
+  return this.findOne({ type: 'dm', participants: { $all: [a, b] } });
+};
+
+conversationSchema.statics.findInvitesFor = async function(userId){
+  const uid = String(userId);
+  return this.find({ 'members.userId': uid, 'members.status': 'pending' });
+};
 
 module.exports = mongoose.model('Conversation', conversationSchema);

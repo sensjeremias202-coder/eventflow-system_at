@@ -46,6 +46,29 @@ router.get('/conversations', authMiddleware, async (req, res) => {
   }
 });
 
+// Lista convites pendentes
+router.get('/conversations/invites', authMiddleware, async (req, res) => {
+  try {
+    const me = String(req.user._id);
+    let invites = [];
+    try {
+      invites = await Conversation.findInvitesFor(me);
+    } catch (_) {
+      invites = [];
+    }
+    const payload = invites.map(c => ({
+      _id: c._id,
+      name: c.title || 'Conversa',
+      isGroup: c.type === 'group',
+      eventId: c.eventId || null
+    }));
+    res.json({ invites: payload });
+  } catch (err) {
+    console.error('Erro ao listar convites:', err);
+    res.status(500).json({ error: 'Não foi possível listar convites' });
+  }
+});
+
 // Criar/garantir DM com userId
 router.post('/conversations/dm', authMiddleware, async (req, res) => {
   try {
@@ -56,7 +79,7 @@ router.post('/conversations/dm', authMiddleware, async (req, res) => {
     }
     let conv = await Conversation.findDM(me, other);
     if (!conv) {
-      conv = new Conversation({ type: 'dm', participants: [me, other] });
+      conv = new Conversation({ type: 'dm', participants: [me, other], members: [ { userId: me, status: 'accepted' }, { userId: other, status: 'accepted' } ] });
       await conv.save();
     }
     // Auto-join: colocar sockets conectados dos participantes na sala da DM
@@ -69,6 +92,8 @@ router.post('/conversations/dm', authMiddleware, async (req, res) => {
             const uid = String(s.user?._id || '');
             if ((conv.participants || []).some(p => String(p) === uid)) {
               s.join(roomId);
+              // Notificar nova conversa para o outro participante
+              s.emit('conversation:new', { conversation: { _id: conv._id, name: (uid === other ? (req.user.name || req.user.email || 'Usuário') : (other ? (await User.findById(other))?.name || 'Usuário' : 'DM')), isGroup: false } });
             }
           } catch (_) {}
         });
@@ -155,7 +180,9 @@ router.post('/conversations/group', authMiddleware, async (req, res) => {
     if (participants.length < 2) {
       return res.status(400).json({ error: 'Selecione ao menos 1 usuário' });
     }
-    const conv = new Conversation({ type: 'group', title: title || 'Conversa', participants });
+    // Criador já aceito; demais usuários entram como pendentes
+    const pending = participants.filter(p => p !== me);
+    const conv = new Conversation({ type: 'group', title: title || 'Conversa', participants: [me], members: [ { userId: me, status: 'accepted' }, ...pending.map(p => ({ userId: p, status: 'pending' })) ] });
     await conv.save();
 
     // Auto-join participantes conectados
@@ -166,8 +193,11 @@ router.post('/conversations/group', authMiddleware, async (req, res) => {
         io.sockets.sockets.forEach((s) => {
           try {
             const uid = String(s.user?._id || '');
-            if ((conv.participants || []).some(p => String(p) === uid)) {
-              s.join(roomId);
+            // Criador entra na sala
+            if (String(uid) === String(me)) s.join(roomId);
+            // Convidados recebem convite
+            if ((conv.members || []).some(m => String(m.userId) === uid && m.status === 'pending')) {
+              s.emit('conversation:invite', { conversation: { _id: conv._id, name: conv.title || 'Conversa', isGroup: true } });
             }
           } catch (_) {}
         });
@@ -178,6 +208,64 @@ router.post('/conversations/group', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Erro ao criar conversa de grupo:', err);
     res.status(500).json({ error: 'Falha ao criar conversa de grupo' });
+  }
+});
+
+// Aceitar convite de conversa
+router.post('/conversations/:id/accept', authMiddleware, async (req, res) => {
+  try {
+    const id = String(req.params.id || '');
+    const me = String(req.user._id);
+    let conv = await Conversation.findById(id);
+    if (!conv) return res.status(404).json({ error: 'Conversa não encontrada' });
+    // Atualiza status do membro
+    let changed = false;
+    conv.members = (conv.members || []).map(m => {
+      if (String(m.userId) === me && m.status === 'pending') { changed = true; return { userId: me, status: 'accepted' }; }
+      return m;
+    });
+    if (changed) {
+      // adiciona nos participants
+      const has = (conv.participants || []).some(p => String(p) === me);
+      if (!has) conv.participants = [...(conv.participants || []), me];
+      await conv.save();
+      // Auto-join se socket conectado
+      try {
+        const io = req.app.get('io');
+        if (io && io.sockets && io.sockets.sockets) {
+          const roomId = String(conv._id);
+          io.sockets.sockets.forEach((s) => {
+            try {
+              const uid = String(s.user?._id || '');
+              if (uid === me) s.join(roomId);
+            } catch (_) {}
+          });
+        }
+      } catch (_) {}
+    }
+    res.json({ conversation: { _id: conv._id, name: conv.title || 'Conversa', isGroup: conv.type === 'group' } });
+  } catch (err) {
+    console.error('Erro ao aceitar convite:', err);
+    res.status(500).json({ error: 'Falha ao aceitar convite' });
+  }
+});
+
+// Recusar convite de conversa
+router.post('/conversations/:id/decline', authMiddleware, async (req, res) => {
+  try {
+    const id = String(req.params.id || '');
+    const me = String(req.user._id);
+    let conv = await Conversation.findById(id);
+    if (!conv) return res.status(404).json({ error: 'Conversa não encontrada' });
+    conv.members = (conv.members || []).map(m => {
+      if (String(m.userId) === me && m.status === 'pending') { return { userId: me, status: 'declined' }; }
+      return m;
+    });
+    await conv.save();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Erro ao recusar convite:', err);
+    res.status(500).json({ error: 'Falha ao recusar convite' });
   }
 });
 

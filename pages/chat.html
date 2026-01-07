@@ -1698,6 +1698,36 @@
                     }
                 });
 
+                // Notificação de nova conversa (DM ou grupo aceito)
+                window.socket.on('conversation:new', ({ conversation }) => {
+                    const existing = conversationsData.find(c => String(c.id) === String(conversation._id));
+                    if (!existing) {
+                        conversationsData.unshift({
+                            id: conversation._id,
+                            name: conversation.name || 'Conversa',
+                            lastMessage: '',
+                            time: 'Agora',
+                            unread: 0,
+                            participants: [],
+                            eventId: conversation.eventId || null,
+                            isGroup: !!conversation.isGroup,
+                            online: false
+                        });
+                        loadConversations();
+                        showToast('Nova conversa disponível');
+                    }
+                });
+
+                // Convite de conversa de grupo
+                window.socket.on('conversation:invite', ({ conversation }) => {
+                    showToast(`Convite para grupo: ${conversation.name || 'Conversa'}`);
+                    // Armazena convite simples em memória para aceitar/recusar via UI
+                    window._invites = window._invites || [];
+                    const has = window._invites.some(i => String(i._id) === String(conversation._id));
+                    if (!has) window._invites.push(conversation);
+                    renderInvitesBar();
+                });
+
                 // Receber histórico paginado
                 window.socket.on('chat:historyPage', ({ conversationId, page, messages }) => {
                     const arr = (messages || []).map(m => ({
@@ -1976,6 +2006,76 @@
                 }
             }
         });
+
+        // Barra de convites mínima
+        function renderInvitesBar(){
+            let bar = document.getElementById('invitesBar');
+            if (!bar) {
+                bar = document.createElement('div');
+                bar.id = 'invitesBar';
+                bar.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ffefc1;color:#333;padding:8px 12px;display:flex;gap:12px;align-items:center;z-index:1000;border-bottom:1px solid #e0c97a;';
+                bar.innerHTML = '<strong>Convites:</strong>';
+                document.body.appendChild(bar);
+            }
+            const invites = window._invites || [];
+            // Limpar itens antigos
+            bar.querySelectorAll('.invite-item').forEach(el => el.remove());
+            invites.forEach(inv => {
+                const el = document.createElement('div');
+                el.className = 'invite-item';
+                el.style.cssText = 'padding:4px 8px;background:#fff;border:1px solid #e0c97a;border-radius:6px;display:flex;gap:8px;align-items:center;';
+                el.innerHTML = `<span>${inv.name || 'Conversa'}</span>`;
+                const acceptBtn = document.createElement('button');
+                acceptBtn.textContent = 'Aceitar';
+                acceptBtn.style.cssText = 'padding:4px 8px;background:#25D366;color:#fff;border:none;border-radius:4px;cursor:pointer;';
+                acceptBtn.onclick = async () => {
+                    try {
+                        const res = await api.post(`/chat/conversations/${inv._id}/accept`, {}, { auth: true });
+                        if (res.ok) {
+                            const data = await res.json();
+                            // adicionar conversa na lista
+                            conversationsData.unshift({
+                                id: data.conversation._id,
+                                name: data.conversation.name || 'Conversa',
+                                lastMessage: '',
+                                time: 'Agora',
+                                unread: 0,
+                                participants: [],
+                                eventId: null,
+                                isGroup: !!data.conversation.isGroup,
+                                online: false
+                            });
+                            loadConversations();
+                            // remover convite local
+                            window._invites = (window._invites || []).filter(i => String(i._id) !== String(inv._id));
+                            renderInvitesBar();
+                            showToast('Convite aceito');
+                        } else {
+                            showToast('Falha ao aceitar convite');
+                        }
+                    } catch (e) { showToast('Erro ao aceitar convite'); }
+                };
+                const declineBtn = document.createElement('button');
+                declineBtn.textContent = 'Recusar';
+                declineBtn.style.cssText = 'padding:4px 8px;background:#d9534f;color:#fff;border:none;border-radius:4px;cursor:pointer;';
+                declineBtn.onclick = async () => {
+                    try {
+                        const res = await api.post(`/chat/conversations/${inv._id}/decline`, {}, { auth: true });
+                        if (res.ok) {
+                            window._invites = (window._invites || []).filter(i => String(i._id) !== String(inv._id));
+                            renderInvitesBar();
+                            showToast('Convite recusado');
+                        } else {
+                            showToast('Falha ao recusar convite');
+                        }
+                    } catch (e) { showToast('Erro ao recusar convite'); }
+                };
+                el.appendChild(acceptBtn);
+                el.appendChild(declineBtn);
+                bar.appendChild(el);
+            });
+            if ((window._invites || []).length === 0) bar.style.display = 'none'; else bar.style.display = 'flex';
+        }
 
         // Adicionar estilos CSS dinâmicos
         const style = document.createElement('style');
