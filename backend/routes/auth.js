@@ -275,4 +275,4 @@ router.post('/reset-password', async (req, res) => {
     }
 });
 
-// Endpoints de verificação removidos
+ 
