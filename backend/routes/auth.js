@@ -45,9 +45,12 @@ router.post('/register', async (req, res) => {
         `;
         try { await sendMail({ to: email, subject: 'Eventflow - Confirmação de email', html }); } catch(_) {}
 
-        res.status(201).json({
-            message: 'Usuário criado. Verifique seu email para confirmar a conta.'
-        });
+        const payload = { message: 'Usuário criado. Verifique seu email para confirmar a conta.' };
+        if (String(process.env.DEV_EMAIL_DEBUG || '').toLowerCase() === 'true') {
+            payload.debugToken = rawToken;
+            payload.debugLinks = { verifyLink, apiVerifyLink };
+        }
+        res.status(201).json(payload);
     } catch (error) {
         console.error('Erro no registro:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
@@ -271,7 +274,12 @@ router.post('/resend-email-verification', authMiddleware, async (req, res) => {
             <p>Expira em 24 horas.</p>
         `;
         try { await sendMail({ to: user.email, subject: 'Eventflow - Reenvio de confirmação de email', html }); } catch(_) {}
-        return res.json({ message: 'Email de confirmação reenviado' });
+        const payload = { message: 'Email de confirmação reenviado' };
+        if (String(process.env.DEV_EMAIL_DEBUG || '').toLowerCase() === 'true') {
+            payload.debugToken = rawToken;
+            payload.debugLinks = { verifyLink, apiVerifyLink };
+        }
+        return res.json(payload);
     } catch (error) {
         console.error('Erro em resend-email-verification:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
