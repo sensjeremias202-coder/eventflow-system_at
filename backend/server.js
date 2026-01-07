@@ -78,6 +78,9 @@ const io = new Server(server, {
     }
 });
 
+// Tornar io acessível nas rotas Express
+app.set('io', io);
+
 // Store simples em memória
 const chatStore = {
     messages: {}, // { conversationId: [ { id, senderId, senderName, text, time, status } ] }

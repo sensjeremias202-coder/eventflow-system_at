@@ -100,6 +100,22 @@ router.post('/conversations/event', authMiddleware, async (req, res) => {
         await conv.save();
       }
     }
+
+    // Auto-join imediato: colocar sockets conectados dos participantes na sala
+    try {
+      const io = req.app.get('io');
+      if (io && io.sockets && io.sockets.sockets) {
+        const roomId = String(conv._id);
+        io.sockets.sockets.forEach((s) => {
+          try {
+            const uid = String(s.user?._id || '');
+            if ((conv.participants || []).some(p => String(p) === uid)) {
+              s.join(roomId);
+            }
+          } catch (_) {}
+        });
+      }
+    } catch (_) {}
     res.json({
       conversation: {
         _id: conv._id,
