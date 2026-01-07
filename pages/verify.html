@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verificação - Eventflow</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="../styles.css">
+  <script src="../config.js"></script>
+  <script src="../api.js"></script>
+  <style>
+    .verify-container { max-width: 520px; margin: 10vh auto; background:#fff; border-radius:16px; box-shadow:0 12px 32px rgba(0,0,0,.12); padding:24px; }
+    .verify-header { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+    .methods { display:flex; gap:8px; margin: 12px 0; }
+    .methods button { padding:8px 12px; border:1px solid #ddd; border-radius:8px; background:#f9f9f9; cursor:pointer }
+    .code-input { width:100%; padding:12px; border:2px solid #ddd; border-radius:8px; font-size:16px; letter-spacing:4px; text-align:center; }
+    .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+  </style>
+</head>
+<body>
+  <script> if (!localStorage.getItem('token')) { window.location.href = '../login-firebase.html'; } </script>
+
+  <!-- Quando verificação não está disponível -->
+  <div id="viewDisabled" class="verify-container" style="display:none; text-align:center">
+    <div class="verify-header" style="justify-content:center">
+      <i class="fas fa-info-circle"></i>
+      <h2 style="margin:0">Verificação desativada</h2>
+    </div>
+    <p>O acesso não requer confirmação. Você será redirecionado.</p>
+    <a href="dashboard.html" class="btn btn-primary" style="margin-top:12px"><i class="fas fa-arrow-right"></i> Ir para Dashboard</a>
+  </div>
+
+  <!-- Quando verificação está disponível (WhatsApp) -->
+  <div id="viewEnabled" class="verify-container" style="display:none">
+    <div class="verify-header">
+      <i class="fas fa-shield-alt"></i>
+      <h2 style="margin:0">Verifique sua conta</h2>
+    </div>
+    <p>Receba seu código de verificação via WhatsApp e confirme sua conta.</p>
+
+    <div class="methods">
+      <button id="methodWhatsApp"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+    </div>
+
+    <div class="form-group" id="phoneGroup" style="display:block;margin-bottom:8px">
+      <label for="phone"><i class="fas fa-phone"></i> Telefone (com DDI/DDD):</label>
+      <input type="tel" id="phone" placeholder="+55DDDNUMERO" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:8px" />
+    </div>
+
+    <div id="qrSection" style="display:none; margin:12px 0; text-align:center">
+      <p style="color:#2e5051; margin-bottom:8px"><i class="fab fa-whatsapp"></i> Escaneie para abrir conversa no WhatsApp</p>
+      <img id="qrImage" alt="QR WhatsApp" style="width:200px;height:200px;border:1px solid #eee;border-radius:8px" />
+      <div style="font-size:12px;color:#777;margin-top:6px">Dica: adicione o contato para facilitar verificações futuras.</div>
+    </div>
+
+    <div id="requestStatus" style="color:#2e5051;margin-bottom:8px"></div>
+
+    <input type="text" id="code" class="code-input" placeholder="000000" maxlength="6" />
+
+    <div class="actions">
+      <button class="btn btn-secondary" id="resendBtn"><i class="fas fa-redo"></i> Reenviar código</button>
+      <button class="btn btn-primary" id="confirmBtn"><i class="fas fa-check"></i> Confirmar</button>
+    </div>
+  </div>
+
+  <script>
+    // Tenta detectar se os endpoints de verificação existem (adaptável a mudanças no backend)
+    async function detectVerificationAvailable() {
+      try {
+        const base = (window.api?.url || (window.API_BASE_URL || localStorage.getItem('API_BASE_URL') || '')).replace(/\/$/, '');
+        const url = base + '/api/auth/request-verification';
+        const res = await fetch(url, { method: 'OPTIONS' });
+        return res.ok || (res.status >= 200 && res.status < 400);
+      } catch (e) { return false; }
+    }
+
+    async function init() {
+      const enabled = await detectVerificationAvailable();
+      const vOn = document.getElementById('viewEnabled');
+      const vOff = document.getElementById('viewDisabled');
+      if (!enabled) {
+        vOff.style.display = 'block';
+        setTimeout(() => { window.location.href = 'dashboard.html'; }, 1200);
+        return;
+      }
+      vOn.style.display = 'block';
+
+      let currentMethod = 'whatsapp';
+      async function requestCode(method){
+        try {
+          currentMethod = method;
+          const phone = document.getElementById('phone')?.value?.trim();
+          const body = { method, phone };
+          const res = await api.post('/auth/request-verification', body, { auth: true });
+          const data = res.ok ? await res.json() : { error: 'Falha ao solicitar' };
+          const msg = 'Código enviado por WhatsApp.';
+          document.getElementById('requestStatus').textContent = res.ok ? msg : (data.error||'Erro');
+          const qrSection = document.getElementById('qrSection');
+          const qrImage = document.getElementById('qrImage');
+          if (method === 'whatsapp' && phone) {
+            try {
+              const waUrl = `https://wa.me/${encodeURIComponent(phone)}?text=${encodeURIComponent('Olá, quero verificar minha conta Eventflow.')}`;
+              qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(waUrl)}`;
+              qrSection.style.display = 'block';
+            } catch(_) { qrSection.style.display = 'none'; }
+          } else {
+            qrSection.style.display = 'none';
+          }
+        } catch(err){ document.getElementById('requestStatus').textContent = 'Erro ao solicitar código'; }
+      }
+      async function confirm(){
+        const code = document.getElementById('code').value.trim();
+        if (!code) { alert('Informe o código'); return; }
+        try {
+          const res = await api.post('/auth/verify', { code }, { auth: true });
+          const data = await res.json().catch(()=>({}));
+          if (res.ok) { alert('Conta verificada!'); window.location.href = 'dashboard.html'; }
+          else { alert(data.error || 'Código inválido'); }
+        } catch(err){ alert('Erro ao confirmar'); }
+      }
+      document.getElementById('methodWhatsApp').onclick = () => { document.getElementById('phoneGroup').style.display='block'; requestCode('whatsapp'); };
+      document.getElementById('resendBtn').onclick = () => requestCode(currentMethod);
+      document.getElementById('confirmBtn').onclick = confirm;
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
