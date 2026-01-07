@@ -817,7 +817,7 @@
                     <button class="chat-action-btn" id="tabUsersBtn" title="Usuários" style="background:#e9edef;border-radius:6px;width:auto;height:auto;padding:6px 10px;color:#111b21;font-size:14px;">Usuários</button>
                     <button class="chat-action-btn" id="tabEventsBtn" title="Eventos" style="background:#e9edef;border-radius:6px;width:auto;height:auto;padding:6px 10px;color:#111b21;font-size:14px;">Eventos</button>
                     <label style="margin-left:auto; display:flex; align-items:center; gap:6px; color:#667781; font-size:13px;">
-                        <input type="checkbox" id="onlyOnlineToggle" checked>
+                        <input type="checkbox" id="onlyOnlineToggle">
                         Apenas online
                     </label>
                 </div>
@@ -1253,8 +1253,12 @@
         function showNewChatModal() {
             const modal = document.getElementById('newChatModal');
             modal.classList.add('active');
-            // Por padrão, abrir na aba Usuários
-            try { loadUsersForNewChat(true); } catch(_) { loadEventsForNewChat(); }
+            // Por padrão, abrir na aba Usuários e mostrar todos (online/offline)
+            try {
+                const onlyToggle = document.getElementById('onlyOnlineToggle');
+                if (onlyToggle) onlyToggle.checked = false;
+                loadUsersForNewChat(true);
+            } catch(_) { loadEventsForNewChat(); }
             // Acessibilidade: foco inicial no back
             const back = document.getElementById('modalBackBtn');
             if (back) back.focus();
