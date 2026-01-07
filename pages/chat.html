@@ -1717,8 +1717,8 @@
 
                 // Receber histórico ao entrar
                 window.socket.on('chat:history', ({ conversationId, messages }) => {
-                    messagesData[conversationId] = messages.map(m => ({
-                        id: m.id,
+                    messagesData[conversationId] = (messages || []).map(m => ({
+                        id: m._id || m.id,
                         sender: m.senderName,
                         message: m.text,
                         time: m.time,
@@ -1803,17 +1803,11 @@
                         document.getElementById('chatStatus').textContent = online ? 'Online' : (lastSeen ? 'Última vez ' + new Date(lastSeen).toLocaleString('pt-BR') : 'Offline');
                     }
                 });
+
             } catch (err) {
                 console.warn('Falha ao conectar Socket.IO', err);
             }
 
-            // Event Listeners
-            document.getElementById('newChatBtn').addEventListener('click', () => {
-                showNewChatModal();
-                loadUsersForNewChat();
-            });
-            // Botão voltar
-            const backBtn = document.getElementById('backToListBtn');
             if (backBtn) backBtn.addEventListener('click', backToHome);
             // Botão voltar
             document.getElementById('backToListBtn').addEventListener('click', () => {
