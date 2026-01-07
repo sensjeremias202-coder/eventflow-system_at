@@ -6,11 +6,17 @@
   try {
     var params = new URLSearchParams(window.location.search || '');
     var qp = params.get('apiBase');
+    var gcid = params.get('googleClientId');
     if (qp) {
       try { localStorage.setItem('API_BASE_URL', qp); } catch(_) {}
       window.API_BASE_URL = qp;
       console.log('[Config] API via query param:', qp);
       return;
+    }
+    if (gcid) {
+      try { localStorage.setItem('GOOGLE_CLIENT_ID', gcid); } catch(_) {}
+      window.GOOGLE_CLIENT_ID = gcid;
+      console.log('[Config] Google Client via query:', gcid);
     }
   } catch (_) {}
 
@@ -21,6 +27,12 @@
       window.API_BASE_URL = ls;
       console.log('[Config] API via localStorage:', ls);
       return;
+    }
+    var gls = null;
+    try { gls = localStorage.getItem('GOOGLE_CLIENT_ID'); } catch(_) {}
+    if (gls) {
+      window.GOOGLE_CLIENT_ID = gls;
+      console.log('[Config] Google Client via localStorage:', gls);
     }
   } catch (_) {}
 

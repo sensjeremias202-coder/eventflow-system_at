@@ -5,6 +5,9 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/authMiddleware');
 const { sendMail } = require('../config/mailer');
+const { OAuth2Client } = require('google-auth-library');
+const googleClientId = process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID || '';
+const googleClient = googleClientId ? new OAuth2Client(googleClientId) : null;
 
 // Registro de usuário
 router.post('/register', async (req, res) => {
@@ -25,32 +28,10 @@ router.post('/register', async (req, res) => {
             role: role || 'participante'
         });
         
-        // Gerar token de verificação por email e enviar
-        const rawToken = user.generateEmailVerifyToken();
+        // Verificação por email removida: conta ativa imediatamente
+        user.isVerified = true;
         await user.save();
-
-        const frontendUrl = (process.env.FRONTEND_URL || 'http://127.0.0.1:5500').replace(/\/$/, '');
-        const backendUrl = (process.env.BACKEND_PUBLIC_URL || 'http://localhost:5000').replace(/\/$/, '');
-        const verifyLink = `${frontendUrl}/pages/verify-email.html?token=${rawToken}`;
-        const apiVerifyLink = `${backendUrl}/api/auth/verify-email?token=${rawToken}`;
-        const html = `
-            <p>Olá, ${user.name || 'usuário'}</p>
-            <p>Bem-vindo ao Eventflow! Para ativar sua conta, clique no link abaixo:</p>
-            <p><a href="${verifyLink}" target="_blank">Confirmar email</a></p>
-            <p>Ou copie este token para confirmar:</p>
-            <pre style="padding:12px;border:1px solid #ddd;border-radius:6px;background:#f7f7f7;">${rawToken}</pre>
-            <p>Confirmação direta (caso o link acima não funcione):</p>
-            <p><a href="${apiVerifyLink}" target="_blank">Confirmar via API</a></p>
-            <p>Este token expira em 24 horas.</p>
-        `;
-        try { await sendMail({ to: email, subject: 'Eventflow - Confirmação de email', html }); } catch(_) {}
-
-        const payload = { message: 'Usuário criado. Verifique seu email para confirmar a conta.' };
-        if (String(process.env.DEV_EMAIL_DEBUG || '').toLowerCase() === 'true') {
-            payload.debugToken = rawToken;
-            payload.debugLinks = { verifyLink, apiVerifyLink };
-        }
-        res.status(201).json(payload);
+        res.status(201).json({ message: 'Usuário criado com sucesso.' });
     } catch (error) {
         console.error('Erro no registro:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
@@ -94,7 +75,7 @@ router.post('/login', async (req, res) => {
                 eventsCount: user.eventsCount,
                 participantsCount: user.participantsCount,
                 successRate: user.successRate,
-                isVerified: user.isVerified === true
+                isVerified: true
             },
             token
         });
@@ -210,79 +191,44 @@ router.post('/logout', authMiddleware, async (req, res) => {
 
 module.exports = router;
 
-// Verificação por email via token
-router.post('/verify-email', async (req, res) => {
+// Login com Google via ID Token
+router.post('/google-login', async (req, res) => {
     try {
-        const { token } = req.body;
-        if (!token) return res.status(400).json({ error: 'Token é obrigatório' });
-        const hashed = crypto.createHash('sha256').update(String(token)).digest('hex');
-        const now = Date.now();
-        const user = await User.findOne({ emailVerifyTokenHash: hashed, emailVerifyExpires: { $gt: now } });
-        if (!user) return res.status(400).json({ error: 'Token inválido ou expirado' });
-        user.isVerified = true;
-        user.emailVerifyTokenHash = null;
-        user.emailVerifyExpires = null;
-        await user.save();
-        return res.json({ message: 'Email confirmado com sucesso' });
-    } catch (error) {
-        console.error('Erro em verify-email:', error);
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
+        const { idToken } = req.body || {};
+        if (!idToken) return res.status(400).json({ error: 'idToken é obrigatório' });
+        if (!googleClient) return res.status(500).json({ error: 'GOOGLE_CLIENT_ID não configurado no backend' });
 
-// Verificação por email via token (GET para links diretos)
-router.get('/verify-email', async (req, res) => {
-    try {
-        const token = req.query.token;
-        if (!token) return res.status(400).json({ error: 'Token é obrigatório' });
-        const hashed = crypto.createHash('sha256').update(String(token)).digest('hex');
-        const now = Date.now();
-        const user = await User.findOne({ emailVerifyTokenHash: hashed, emailVerifyExpires: { $gt: now } });
-        if (!user) return res.status(400).json({ error: 'Token inválido ou expirado' });
-        user.isVerified = true;
-        user.emailVerifyTokenHash = null;
-        user.emailVerifyExpires = null;
-        await user.save();
-        const frontendUrl = (process.env.FRONTEND_URL || 'http://127.0.0.1:5500').replace(/\/$/, '');
-        return res.redirect(`${frontendUrl}/login-firebase.html?verified=1`);
-    } catch (error) {
-        console.error('Erro em verify-email (GET):', error);
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
+        const ticket = await googleClient.verifyIdToken({ idToken, audience: googleClientId });
+        const payload = ticket.getPayload();
+        const email = payload && payload.email ? payload.email : null;
+        const name = payload && payload.name ? payload.name : 'Usuário Google';
+        const avatar = payload && payload.picture ? payload.picture : null;
+        if (!email) return res.status(400).json({ error: 'Não foi possível obter email da conta Google' });
 
-// Reenviar token de verificação por email
-router.post('/resend-email-verification', authMiddleware, async (req, res) => {
-    try {
-        const user = req.user;
-        if (!user) return res.status(401).json({ error: 'Não autorizado' });
-        if (user.isVerified === true) return res.status(400).json({ error: 'Conta já verificada' });
-        const rawToken = user.generateEmailVerifyToken();
-        await user.save();
-        const frontendUrl = (process.env.FRONTEND_URL || 'http://127.0.0.1:5500').replace(/\/$/, '');
-        const backendUrl = (process.env.BACKEND_PUBLIC_URL || 'http://localhost:5000').replace(/\/$/, '');
-        const verifyLink = `${frontendUrl}/pages/verify-email.html?token=${rawToken}`;
-        const apiVerifyLink = `${backendUrl}/api/auth/verify-email?token=${rawToken}`;
-        const html = `
-            <p>Olá, ${user.name || 'usuário'}</p>
-            <p>Segue seu novo link de confirmação:</p>
-            <p><a href="${verifyLink}" target="_blank">Confirmar email</a></p>
-            <p>Token:</p>
-            <pre style="padding:12px;border:1px solid #ddd;border-radius:6px;background:#f7f7f7;">${rawToken}</pre>
-            <p>Confirmação direta:</p>
-            <p><a href="${apiVerifyLink}" target="_blank">Confirmar via API</a></p>
-            <p>Expira em 24 horas.</p>
-        `;
-        try { await sendMail({ to: user.email, subject: 'Eventflow - Reenvio de confirmação de email', html }); } catch(_) {}
-        const payload = { message: 'Email de confirmação reenviado' };
-        if (String(process.env.DEV_EMAIL_DEBUG || '').toLowerCase() === 'true') {
-            payload.debugToken = rawToken;
-            payload.debugLinks = { verifyLink, apiVerifyLink };
+        let user = await User.findOne({ email });
+        if (!user) {
+            user = new User({ name, email, password: crypto.randomBytes(16).toString('hex'), role: 'participante', avatar, isVerified: true });
+            await user.save();
+        } else {
+            if (!user.isVerified) { user.isVerified = true; await user.save(); }
         }
-        return res.json(payload);
+
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+        return res.json({
+            message: 'Login Google realizado com sucesso',
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                avatar: user.avatar,
+                isVerified: true
+            },
+            token
+        });
     } catch (error) {
-        console.error('Erro em resend-email-verification:', error);
-        res.status(500).json({ error: 'Erro interno do servidor' });
+        console.error('Erro em google-login:', error);
+        res.status(500).json({ error: 'Falha na autenticação Google' });
     }
 });
 

@@ -232,9 +232,9 @@
                 <span id="btnText">Entrar</span>
                 <div id="btnLoading" class="loading" style="display: none;"></div>
             </button>
-            <button type="button" class="btn" id="resendVerifyBtn" style="display:none;background:#eee;color:#333">
-                <i class="fas fa-paper-plane"></i> Reenviar e-mail de confirmação
-            </button>
+            <div id="googleSignInBtn" class="btn" style="background:#fff;color:#333;border:1px solid #ddd">
+                <img alt="Google" src="https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png" style="width:20px;height:20px"> Entrar com Google
+            </div>
         </form>
         
         <div class="links">
@@ -252,6 +252,8 @@
     <script src="config.js"></script>
     <!-- Helper de API -->
     <script src="api.js"></script>
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -304,16 +306,8 @@
                     const result = await response.json();
                     if (response.ok) {
                         api.token.set(result.token);
-                        const verified = result?.user?.isVerified === true;
-                        if (verified) {
-                            showMessage('✅ Login realizado com sucesso! Redirecionando...', 'success');
-                            setTimeout(() => { window.location.href = 'pages/dashboard.html'; }, 1000);
-                        } else {
-                            showMessage('⚠️ Conta não verificada. Reenvie o e-mail de confirmação ou confirme com seu token.', 'error');
-                            const btn = document.getElementById('resendVerifyBtn');
-                            btn.style.display = 'block';
-                            loginBtn.disabled = false; btnText.textContent = 'Entrar'; btnLoading.style.display = 'none';
-                        }
+                        showMessage('✅ Login realizado com sucesso! Redirecionando...', 'success');
+                        setTimeout(() => { window.location.href = 'pages/dashboard.html'; }, 1000);
                     } else {
                         showMessage('❌ ' + (result.error || 'Erro ao fazer login'), 'error');
                         loginBtn.disabled = false; btnText.textContent = 'Entrar'; btnLoading.style.display = 'none';
@@ -343,27 +337,39 @@
                 return re.test(email);
             }
 
-            // Reenvio de confirmação de e-mail
-            async function resendVerification(){
-                const btn = document.getElementById('resendVerifyBtn');
-                btn.disabled = true;
-                btn.innerHTML = '<span class="loading" style="border-top-color:#333"></span> Enviando...';
-                try {
-                    const res = await api.post('/auth/resend-email-verification', {}, { auth: true });
-                    const data = await res.json().catch(()=>({}));
-                    if (res.ok) {
-                        showMessage(data.message || 'Email de confirmação reenviado. Verifique sua caixa de entrada.', 'success');
-                    } else {
-                        showMessage(data.error || 'Não foi possível reenviar o email. Tente novamente.', 'error');
-                    }
-                } catch(e){
-                    showMessage('Erro ao reenviar email. Tente novamente.', 'error');
-                } finally {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Reenviar e-mail de confirmação';
+            // Login com Google (GIS)
+            function initGoogle(){
+                const CLIENT_ID = window.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID';
+                if (!CLIENT_ID || CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') {
+                    console.warn('GOOGLE_CLIENT_ID não configurado. Defina window.GOOGLE_CLIENT_ID no config.js ou via query param.');
                 }
+                if (!window.google || !window.google.accounts || !window.google.accounts.id) return;
+                window.google.accounts.id.initialize({
+                    client_id: CLIENT_ID,
+                    callback: async (response) => {
+                        try {
+                            const idToken = response.credential;
+                            if (!idToken) return;
+                            const r = await api.post('/auth/google-login', { idToken });
+                            const data = await r.json();
+                            if (r.ok) {
+                                api.token.set(data.token);
+                                showMessage('✅ Login com Google realizado! Redirecionando...', 'success');
+                                setTimeout(() => { window.location.href = 'pages/dashboard.html'; }, 800);
+                            } else {
+                                showMessage('❌ ' + (data.error || 'Falha no login Google'), 'error');
+                            }
+                        } catch (e) {
+                            showMessage('❌ Falha ao autenticar com Google', 'error');
+                        }
+                    }
+                });
+                // Renderiza botão Google na div
+                try {
+                    window.google.accounts.id.renderButton(document.getElementById('googleSignInBtn'), { theme: 'outline', size: 'large' });
+                } catch(e){ /* fallback visual já presente */ }
             }
-            document.getElementById('resendVerifyBtn').addEventListener('click', resendVerification);
+            window.addEventListener('load', initGoogle);
         });
     </script>
 </body>
