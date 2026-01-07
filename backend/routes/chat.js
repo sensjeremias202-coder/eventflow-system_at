@@ -82,9 +82,12 @@ router.post('/conversations/dm', authMiddleware, async (req, res) => {
       conv = new Conversation({ type: 'dm', participants: [me, other], members: [ { userId: me, status: 'accepted' }, { userId: other, status: 'accepted' } ] });
       await conv.save();
     }
-    // Auto-join: colocar sockets conectados dos participantes na sala da DM
+    // Auto-join: colocar sockets conectados dos participantes na sala da DM e notificar ambos
     try {
       const io = req.app.get('io');
+      const meName = (req.user.name || req.user.email || 'Você');
+      const otherUser = await User.findById(other);
+      const otherName = otherUser ? (otherUser.name || otherUser.email || 'Usuário') : 'Usuário';
       if (io && io.sockets && io.sockets.sockets) {
         const roomId = String(conv._id);
         io.sockets.sockets.forEach((s) => {
@@ -92,8 +95,8 @@ router.post('/conversations/dm', authMiddleware, async (req, res) => {
             const uid = String(s.user?._id || '');
             if ((conv.participants || []).some(p => String(p) === uid)) {
               s.join(roomId);
-              // Notificar nova conversa para o outro participante
-              s.emit('conversation:new', { conversation: { _id: conv._id, name: (uid === other ? (req.user.name || req.user.email || 'Usuário') : (other ? (await User.findById(other))?.name || 'Usuário' : 'DM')), isGroup: false } });
+              const nameForRecipient = (uid === other ? meName : otherName);
+              s.emit('conversation:new', { conversation: { _id: conv._id, name: nameForRecipient, isGroup: false } });
             }
           } catch (_) {}
         });

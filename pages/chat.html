@@ -1672,6 +1672,15 @@
             try { const ok = await api.requireVerified(); if (!ok) return; } catch(_) { return; }
             await loadUserInfo();
             await fetchRealConversations();
+            // Buscar convites pendentes e exibir barra (caso não esteja conectado para receber sockets)
+            try {
+                const resInv = await api.get('/chat/conversations/invites', { auth: true });
+                if (resInv.ok) {
+                    const data = await resInv.json();
+                    window._invites = Array.isArray(data?.invites) ? data.invites : [];
+                    if (window._invites.length) renderInvitesBar();
+                }
+            } catch (e) { /* ignora */ }
             // Conectar Socket.IO
             try {
                 const base = (window.api && window.api.url) ? window.api.url : ((typeof window.API_BASE_URL !== 'undefined' && window.API_BASE_URL) ? window.API_BASE_URL : '');
