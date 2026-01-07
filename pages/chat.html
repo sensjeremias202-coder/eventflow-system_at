@@ -1390,10 +1390,11 @@
         // Carregar usuários para nova conversa
         let usersPage = 1;
         const usersLimit = 20;
-        async function loadUsersForNewChat(reset = true) {
+                async function loadUsersForNewChat(reset = true) {
             const list = document.getElementById('eventList');
             if (reset) {
               usersPage = 1;
+                            selectedUserId = null;
               list.innerHTML = `
                 <div style="padding: 20px; text-align: center;">
                     <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: var(--whatsapp-icon);"></i>
@@ -1404,7 +1405,11 @@
             try {
                 const res = await api.get(`/users?page=${usersPage}&limit=${usersLimit}`, { auth: true });
                 const data = res.ok ? await res.json() : { users: [] };
-                const users = Array.isArray(data.users) ? data.users : [];
+                                let users = Array.isArray(data.users) ? data.users : [];
+                                // Remover o próprio usuário da lista para evitar erro de userId inválido
+                                if (currentUser?._id) {
+                                        users = users.filter(u => String(u._id) !== String(currentUser._id));
+                                }
                 if (users.length === 0) {
                     if (reset) list.innerHTML = '<p style="padding:16px;color:#667781;">Nenhum usuário encontrado.</p>';
                     return;
@@ -1470,10 +1475,17 @@
                 const startBtn = document.getElementById('startDmBtn');
                 if (startBtn) {
                     startBtn.disabled = !selectedUserId;
-                    startBtn.onclick = () => {
+                    startBtn.onclick = async () => {
                         if (!selectedUserId) return;
-                        // Usa criação por ID para evitar dependência do array atual
-                        createDMConversationById(selectedUserId);
+                        startBtn.disabled = true;
+                        const original = startBtn.innerHTML;
+                        startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Iniciando...';
+                        try {
+                            await createDMConversationById(selectedUserId);
+                        } finally {
+                            startBtn.innerHTML = original;
+                            startBtn.disabled = false;
+                        }
                     };
                 }
             } catch (err) {
