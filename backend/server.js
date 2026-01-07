@@ -115,6 +115,15 @@ io.on('connection', (socket) => {
                 const roomId = String(c._id || '');
                 if (roomId) socket.join(roomId);
             });
+            // Enviar convites pendentes ao conectar
+            try {
+                if (typeof Conversation.findInvitesFor === 'function') {
+                    const invites = await Conversation.findInvitesFor(me);
+                    (invites || []).forEach(c => {
+                        socket.emit('conversation:invite', { conversation: { _id: String(c._id || ''), name: c.title || 'Conversa', isGroup: c.type === 'group' } });
+                    });
+                }
+            } catch (_) {}
         } catch (e) {
             // Ignorar erros silenciosamente para não interromper conexão
         }
