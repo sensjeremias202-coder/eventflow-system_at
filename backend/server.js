@@ -168,6 +168,29 @@ io.on('connection', (socket) => {
         io.to(String(conversationId)).emit('chat:message', { conversationId, message: msg });
     });
 
+    // Marcar mensagens como lidas (read receipts)
+    socket.on('chat:markRead', async ({ conversationId }) => {
+        if (!conversationId) return;
+        const roomId = String(conversationId);
+        const readerId = String(socket.user._id);
+        // Atualiza memória
+        try {
+            const arr = chatStore.messages[roomId] || [];
+            arr.forEach(m => { if (String(m.senderId) !== readerId) m.status = 'read'; });
+        } catch (_) {}
+        // Atualiza persistência (MongoDB)
+        try {
+            if (typeof ChatMessage.updateMany === 'function') {
+                await ChatMessage.updateMany(
+                    { conversationId: roomId, senderId: { $ne: readerId }, status: { $ne: 'read' } },
+                    { $set: { status: 'read' } }
+                );
+            }
+        } catch (_) {}
+        // Notifica sala
+        io.to(roomId).emit('chat:read', { conversationId: roomId, userId: readerId, at: Date.now() });
+    });
+
     // Histórico paginado sob demanda
     socket.on('chat:historyPage', async ({ conversationId, page = 1, limit = 50 }) => {
         try {

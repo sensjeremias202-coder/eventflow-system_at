@@ -1074,9 +1074,11 @@
             
             // Carregar mensagens
             loadMessages(conversationId);
-            // Realtime: entrar na sala
+            // Realtime: entrar na sala e marcar como lida
             if (window.socket) {
                 window.socket.emit('chat:join', { conversationId });
+                // Marca como lida ao abrir a conversa
+                window.socket.emit('chat:markRead', { conversationId });
             }
             // Controle de paginação
             messagesPages[conversationId] = 1;
@@ -1722,6 +1724,11 @@
                     }
                     if (String(conversationId) === String(currentConversationId)) {
                         loadMessages(currentConversationId);
+                        // Se a mensagem é do outro participante e a conversa está ativa, marca como lida
+                        const isOther = message.senderName !== (currentUser?.name || 'João Silva');
+                        if (isOther && window.socket) {
+                            window.socket.emit('chat:markRead', { conversationId });
+                        }
                         // conversa ativa: marca como lida
                         if (conv) { conv.unread = 0; }
                     } else {
@@ -1731,6 +1738,20 @@
                     }
                     // Re-renderiza lista para refletir última mensagem/tempo
                     loadConversations();
+                });
+
+                // Recibo de leitura: marcar mensagens do usuário atual como lidas
+                window.socket.on('chat:read', ({ conversationId, userId }) => {
+                    // Quando outro usuário lê, atualiza status das mensagens enviadas pelo usuário atual
+                    const isOtherUser = String(userId) !== String(currentUser?._id || '');
+                    if (!messagesData[conversationId]) return;
+                    messagesData[conversationId] = messagesData[conversationId].map(m => {
+                        if (m.type === 'sent' && isOtherUser) return { ...m, status: 'read' };
+                        return m;
+                    });
+                    if (String(conversationId) === String(currentConversationId)) {
+                        loadMessages(currentConversationId);
+                    }
                 });
 
                 // Indicador de digitação
