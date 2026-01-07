@@ -820,6 +820,11 @@
                 <div class="event-list" id="eventList" style="padding: 16px;">
                     <!-- Lista dinâmica: usuários ou eventos -->
                 </div>
+                <div style="display:flex; justify-content:flex-end; gap:8px; padding:10px 16px; border-top:1px solid #eee; background:#fafafa;">
+                    <button class="chat-action-btn" id="startDmBtn" title="Iniciar conversa" style="background: var(--whatsapp-green); color: white; border-radius:6px; width:auto; height:auto; padding:6px 12px; font-size:14px;" disabled>
+                        <i class="fas fa-paper-plane" style="margin-right:6px;"></i> Iniciar DM
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -937,6 +942,7 @@
         let currentConversationId = null;
         let currentUser = null;
         const messagesPages = {};
+        let selectedUserId = null;
 
         // Carregar informações do usuário
         async function loadUserInfo() {
@@ -1428,9 +1434,15 @@
                 list.querySelectorAll('.conversation-item').forEach(item => {
                     item.addEventListener('click', (e) => {
                         if (!e.target.closest('.chat-action-btn')) {
+                            // Seleciona o usuário para iniciar DM via botão
                             const uid = item.dataset.userId;
-                            const user = users.find(x => String(x._id) === String(uid));
-                            if (user) createDMConversation(user);
+                            selectedUserId = uid;
+                            // Atualiza destaque visual
+                            list.querySelectorAll('.conversation-item').forEach(i => i.classList.remove('active'));
+                            item.classList.add('active');
+                            // Habilita botão de iniciar DM
+                            const startBtn = document.getElementById('startDmBtn');
+                            if (startBtn) startBtn.disabled = !selectedUserId;
                         }
                     });
                     const btn = item.querySelector('.chat-action-btn');
@@ -1453,6 +1465,17 @@
                   list.appendChild(loadMore);
                 }
                 loadMore.onclick = () => { usersPage += 1; loadUsersForNewChat(false); };
+
+                // Ação do botão Iniciar DM
+                const startBtn = document.getElementById('startDmBtn');
+                if (startBtn) {
+                    startBtn.disabled = !selectedUserId;
+                    startBtn.onclick = () => {
+                        if (!selectedUserId) return;
+                        const user = users.find(x => String(x._id) === String(selectedUserId));
+                        if (user) createDMConversation(user);
+                    };
+                }
             } catch (err) {
                 console.error('Falha ao carregar usuários', err);
                 list.innerHTML = '<p style="padding:16px;color:#a33;">Erro ao carregar usuários.</p>';
