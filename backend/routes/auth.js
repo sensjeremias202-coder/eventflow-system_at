@@ -70,14 +70,7 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ error: 'Email ou senha incorretos' });
         }
         
-        // Se 2FA estiver habilitado, validar TOTP
-        if (user.twoFactorEnabled === true) {
-            if (!speakeasy) return res.status(500).json({ error: 'TOTP não disponível' });
-            const ok = speakeasy.totp.verify({ secret: user.totpSecret, encoding: 'base32', token: String(totp || ''), window: 1 });
-            if (!ok) {
-                return res.status(401).json({ error: 'TOTP necessário ou inválido' });
-            }
-        }
+        // TOTP desativado: login não requer 2FA
 
         // Gera token JWT
         const token = jwt.sign(

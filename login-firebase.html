@@ -226,10 +226,7 @@
                 </div>
             </div>
 
-            <div class="form-group">
-                <label for="totp"><i class="fas fa-mobile-alt"></i> Código TOTP (se 2FA habilitado):</label>
-                <input type="text" id="totp" placeholder="000000" pattern="\d{6}" inputmode="numeric">
-            </div>
+            <!-- TOTP removido: login sem 2FA -->
             
             <button type="submit" class="btn" id="loginBtn">
                 <span id="btnText">Entrar</span>
@@ -300,14 +297,12 @@
                 
                 // Tentar login via backend
                 try {
-                    const totp = document.getElementById('totp').value.trim();
-                    const response = await api.post('/auth/login', { email, password, totp });
+                    const response = await api.post('/auth/login', { email, password });
                     const result = await response.json();
                     if (response.ok) {
                         api.token.set(result.token);
-                        const verified = result?.user?.isVerified === true;
                         showMessage('✅ Login realizado com sucesso! Redirecionando...', 'success');
-                        setTimeout(() => { window.location.href = verified ? 'pages/dashboard.html' : 'pages/verify.html'; }, 1200);
+                        setTimeout(() => { window.location.href = 'pages/dashboard.html'; }, 1200);
                     } else {
                         showMessage('❌ ' + (result.error || 'Erro ao fazer login'), 'error');
                         loginBtn.disabled = false; btnText.textContent = 'Entrar'; btnLoading.style.display = 'none';

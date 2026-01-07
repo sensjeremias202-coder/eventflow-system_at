@@ -30,21 +30,8 @@
   }
 
   async function requireVerified(){
-    try {
-      const res = await apiFetch('/auth/profile', { method: 'GET' }, { auth: true });
-      if (!res.ok) {
-        return false;
-      }
-      const data = await res.json();
-      const user = data && data.user ? data.user : {};
-      if (user.isVerified !== true) {
-        try { location.href = 'verify.html'; } catch(_) {}
-        return false;
-      }
-      return true;
-    } catch (e) {
-      return false;
-    }
+    // Verificação desativada: sempre permitir
+    return true;
   }
 
   const api = {
