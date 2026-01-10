@@ -9,6 +9,23 @@
     <script src="../config.js"></script>
     <script src="../api.js"></script>
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script>
+        // Fallback: se o CDN acima for bloqueado (ex.: SRI antigo em cache), carrega via jsDelivr
+        (function(){
+            function loadFallback(){
+                if (window.io) return;
+                var s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/socket.io-client@4.7.4/dist/socket.io.min.js';
+                s.async = true;
+                s.onload = function(){ console.log('[socket] fallback client loaded'); };
+                document.head.appendChild(s);
+            }
+            if (!window.io) {
+                loadFallback();
+                document.addEventListener('DOMContentLoaded', loadFallback);
+            }
+        })();
+    </script>
     <style>
         :root {
             --whatsapp-green: #25D366;

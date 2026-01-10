@@ -9,6 +9,24 @@
     <script src="../config.js"></script>
     <script src="../api.js"></script>
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script>
+        // Fallback: se o CDN acima for bloqueado (ex.: SRI antigo em cache), carrega via jsDelivr
+        (function(){
+            function loadFallback(){
+                if (window.io) return;
+                var s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/socket.io-client@4.7.4/dist/socket.io.min.js';
+                s.async = true;
+                s.onload = function(){ console.log('[socket] fallback client loaded'); };
+                document.head.appendChild(s);
+            }
+            if (!window.io) {
+                // tenta imediatamente; se ainda não, tenta após DOM pronto
+                loadFallback();
+                document.addEventListener('DOMContentLoaded', loadFallback);
+            }
+        })();
+    </script>
     <!-- Fallback rápido de estilo do modal caso o CSS global não carregue -->
     <style>
         .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 2000; }
@@ -1162,8 +1180,9 @@
 
             // Botão criar evento
             document.getElementById('createEventBtn')?.addEventListener('click', () => {
-                // Limpar formulário
-                document.getElementById('eventForm').reset();
+                // Limpar formulário com segurança
+                const ef = document.getElementById('eventForm');
+                if (ef) ef.reset();
                 
                 // Configurar modal para criação
                 document.querySelector('.modal-header h3').textContent = 'Criar Novo Evento';
@@ -1180,12 +1199,14 @@
             // Fechar modal
             document.getElementById('modalClose')?.addEventListener('click', () => {
                 document.getElementById('createEventModal').classList.remove('active');
-                document.getElementById('eventForm').reset();
+                const ef = document.getElementById('eventForm');
+                if (ef) ef.reset();
             });
 
             document.getElementById('modalCancel')?.addEventListener('click', () => {
                 document.getElementById('createEventModal').classList.remove('active');
-                document.getElementById('eventForm').reset();
+                const ef = document.getElementById('eventForm');
+                if (ef) ef.reset();
             });
 
             // Fechar modal ao clicar fora
@@ -1193,7 +1214,8 @@
                 const modal = document.getElementById('createEventModal');
                 if (e.target === modal) {
                     modal.classList.remove('active');
-                    document.getElementById('eventForm').reset();
+                    const ef = document.getElementById('eventForm');
+                    if (ef) ef.reset();
                 }
             });
 
