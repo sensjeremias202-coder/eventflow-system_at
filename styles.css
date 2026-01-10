@@ -25,7 +25,7 @@
     box-sizing: border-box;
 }
 
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; font-size: clamp(14px, 1.8vw, 18px); }
 img, video { max-width: 100%; height: auto; }
 iframe { max-width: 100%; }
 .table-responsive { width: 100%; overflow-x: auto; }
