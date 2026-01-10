@@ -776,6 +776,9 @@
                         <i class="fas fa-clock"></i>
                         <span id="brClockChat">Carregando...</span>
                     </div>
+                    <button class="chat-action-btn" id="homeBtn" title="Início">
+                        <i class="fas fa-home"></i>
+                    </button>
                     <button class="chat-action-btn" id="backToListBtn" title="Voltar para lista">
                         <i class="fas fa-arrow-left"></i>
                     </button>
@@ -1290,10 +1293,14 @@
 
         // Obter hora atual formatada
         function getCurrentTime() {
-            if (window.formatBRTime) return window.formatBRTime(new Date());
-            const now = new Date();
-            return now.getHours().toString().padStart(2, '0') + ':' + 
-                   now.getMinutes().toString().padStart(2, '0');
+            try {
+                return new Date().toLocaleTimeString('pt-BR', { timeZone: (window.BR_TZ||'America/Sao_Paulo'), hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            } catch(_) {
+                const now = new Date();
+                return now.getHours().toString().padStart(2, '0') + ':' + 
+                       now.getMinutes().toString().padStart(2, '0') + ':' +
+                       now.getSeconds().toString().padStart(2, '0');
+            }
         }
 
         // Mostrar modal de novo chat
@@ -1886,6 +1893,13 @@
             document.getElementById('backToListBtn').addEventListener('click', () => {
                 document.getElementById('sidebar').classList.remove('hidden');
             });
+            // Botão Home: volta para tela inicial
+            const homeBtn = document.getElementById('homeBtn');
+            if (homeBtn) {
+                homeBtn.addEventListener('click', () => {
+                    try { window.location.href = '../index.html'; } catch(_) { window.location.assign('../index.html'); }
+                });
+            }
             document.getElementById('tabUsersBtn').addEventListener('click', loadUsersForNewChat);
             document.getElementById('tabEventsBtn').addEventListener('click', loadEventsForNewChat);
             document.getElementById('modalBackBtn').addEventListener('click', closeModal);

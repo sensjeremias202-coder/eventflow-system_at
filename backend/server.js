@@ -162,7 +162,7 @@ io.on('connection', (socket) => {
             senderId: socket.user._id,
             senderName: socket.user.name || socket.user.email,
             text: String(text),
-            time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             status: 'delivered',
             clientId: clientId || null
         };

@@ -288,7 +288,7 @@ router.post('/messages', authMiddleware, async (req, res) => {
     const isParticipant = (conv.participants || []).some(p => String(p) === me);
     if (!isParticipant) return res.status(403).json({ error: 'Usuário não participa da conversa' });
 
-    const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const message = {
       id: Date.now(),
       senderId: me,
