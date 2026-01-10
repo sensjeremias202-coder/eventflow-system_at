@@ -68,3 +68,31 @@
     window.API_BASE_URL = 'https://eventflow-system.onrender.com';
   }
 })();
+
+// Utilitários de data/hora em Horário de Brasília
+(function(){
+  try {
+    window.BR_TZ = 'America/Sao_Paulo';
+    window.formatBRDateTime = function(date, opts){
+      try { return new Date(date).toLocaleString('pt-BR', Object.assign({ timeZone: window.BR_TZ }, opts||{})); }
+      catch(e){ return new Date(date).toLocaleString('pt-BR'); }
+    };
+    window.formatBRTime = function(date){
+      try { return new Date(date).toLocaleTimeString('pt-BR', { timeZone: window.BR_TZ, hour: '2-digit', minute: '2-digit' }); }
+      catch(e){ var d = new Date(date); return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'); }
+    };
+    window.initBRClock = function(selector){
+      function tick(){
+        var el = (typeof selector === 'string') ? document.querySelector(selector) : selector;
+        if (!el) return;
+        el.textContent = new Date().toLocaleString('pt-BR', { timeZone: window.BR_TZ, dateStyle: 'short', timeStyle: 'medium' });
+      }
+      tick();
+      return setInterval(tick, 1000);
+    };
+    document.addEventListener('DOMContentLoaded', function(){
+      try { if (document.getElementById('brClock')) window.initBRClock('#brClock'); } catch(_) {}
+      try { if (document.getElementById('brClockChat')) window.initBRClock('#brClockChat'); } catch(_) {}
+    });
+  } catch(_) {}
+})();

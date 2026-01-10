@@ -772,6 +772,10 @@
                     </div>
                 </div>
                 <div class="chat-actions">
+                    <div class="chat-clock" aria-label="Horário de Brasília" style="display:flex;align-items:center;gap:6px;color:#667781;margin-right:8px;">
+                        <i class="fas fa-clock"></i>
+                        <span id="brClockChat">Carregando...</span>
+                    </div>
                     <button class="chat-action-btn" id="backToListBtn" title="Voltar para lista">
                         <i class="fas fa-arrow-left"></i>
                     </button>
@@ -1286,6 +1290,7 @@
 
         // Obter hora atual formatada
         function getCurrentTime() {
+            if (window.formatBRTime) return window.formatBRTime(new Date());
             const now = new Date();
             return now.getHours().toString().padStart(2, '0') + ':' + 
                    now.getMinutes().toString().padStart(2, '0');
@@ -1425,7 +1430,7 @@
                                 <div class="conversation-name">${escapeHTML(String(u.name || u.email || 'Usuário'))}</div>
                             </div>
                             <div class="conversation-last">
-                                <div class="conversation-preview">${escapeHTML(String(u.email || ''))}${u.online ? ' • Online' : (u.lastSeen ? ' • Último acesso ' + new Date(u.lastSeen).toLocaleString('pt-BR') : '')}</div>
+                                <div class="conversation-preview">${escapeHTML(String(u.email || ''))}${u.online ? ' • Online' : (u.lastSeen ? ' • Último acesso ' + (window.formatBRDateTime ? window.formatBRDateTime(u.lastSeen) : new Date(u.lastSeen).toLocaleString('pt-BR')) : '')}</div>
                             </div>
                         </div>
                         <button class="chat-action-btn" style="background: var(--whatsapp-green); color: white;">
@@ -1866,7 +1871,8 @@
                     const dmPrefix = 'dm:';
                     const isDmWithUser = String(currentConversationId || '').startsWith(dmPrefix) && String(currentConversationId).includes(String(userId));
                     if (isDmWithUser) {
-                        document.getElementById('chatStatus').textContent = online ? 'Online' : (lastSeen ? 'Última vez ' + new Date(lastSeen).toLocaleString('pt-BR') : 'Offline');
+                        const lastSeenStr = lastSeen ? (window.formatBRDateTime ? window.formatBRDateTime(lastSeen) : new Date(lastSeen).toLocaleString('pt-BR')) : null;
+                        document.getElementById('chatStatus').textContent = online ? 'Online' : (lastSeenStr ? 'Última vez ' + lastSeenStr : 'Offline');
                     }
                 });
 
