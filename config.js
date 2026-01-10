@@ -42,6 +42,20 @@
     // Preferir porta 5100 em ambiente local (compatível com o .env atual)
     window.API_BASE_URL = isLocal ? 'http://localhost:5100' : 'https://eventflow-system.onrender.com';
     console.log('[Config] API via ambiente:', window.API_BASE_URL, 'Host:', host);
+    // Injetar favicon padronizado (corrige 404 /favicon.ico no GitHub Pages)
+    try {
+      var hasFavicon = document.querySelector('link[rel="icon"]');
+      if (!hasFavicon && typeof location !== 'undefined') {
+        var parts = String(location.pathname || '').split('/').filter(Boolean);
+        var projectRoot = parts.length > 0 ? ('/' + parts[0]) : '';
+        var href = (projectRoot || '') + '/favicon.svg';
+        var link = document.createElement('link');
+        link.rel = 'icon';
+        link.type = 'image/svg+xml';
+        link.href = href;
+        document.head && document.head.appendChild(link);
+      }
+    } catch (_) {}
     // Define GOOGLE_CLIENT_ID padrão em produção caso não esteja setado
     if (!isLocal) {
       var defaultProdGoogleClientId = '659805758572-mmkqsk3oib6r63mpone8e716bjceu8qq.apps.googleusercontent.com';
