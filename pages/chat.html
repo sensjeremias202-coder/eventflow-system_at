@@ -1235,13 +1235,20 @@
             messagesData[currentConversationId].push(optimistic);
             loadMessages(currentConversationId);
 
-            // Emitir para o servidor com clientId para deduplicar/atualizar
+            // Emitir para o servidor com clientId para deduplicar/atualizar (com fallback HTTP)
             try {
-                if (window.socket) {
+                const connected = !!(window.socket && window.socket.connected);
+                if (window.socket && connected) {
                     window.socket.emit('chat:message', { conversationId: currentConversationId, text, clientId });
+                } else {
+                    // Fallback HTTP: garante entrega mesmo sem WebSocket
+                    const res = await api.post('/chat/messages', { conversationId: currentConversationId, text, clientId }, { auth: true });
+                    if (!res.ok) {
+                        console.warn('Falha no fallback HTTP de mensagem');
+                    }
                 }
             } catch (err) {
-                console.warn('Falha ao emitir mensagem realtime', err);
+                console.warn('Falha ao enviar mensagem (realtime/HTTP)', err);
             }
 
             // Limpar input e manter UX consistente

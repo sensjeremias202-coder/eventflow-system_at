@@ -106,6 +106,9 @@ io.on('connection', (socket) => {
     // Broadcast presença inicial
     io.emit('presence:update', { userId: String(socket.user._id), online: true, lastSeen: null });
 
+    // Sala específica do usuário para notificações pessoais (ex.: eventos criados)
+    try { socket.join(`user:${String(socket.user._id)}`); } catch (_) {}
+
     // Auto-join: ao conectar, entrar em todas as conversas do usuário
     (async () => {
         try {

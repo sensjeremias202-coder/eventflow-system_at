@@ -273,3 +273,56 @@ router.post('/conversations/:id/decline', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+// Enviar mensagem via HTTP (fallback quando Socket.IO não estiver disponível)
+router.post('/messages', authMiddleware, async (req, res) => {
+  try {
+    const { conversationId, text, clientId } = req.body || {};
+    if (!conversationId || !text) {
+      return res.status(400).json({ error: 'conversationId e text são obrigatórios' });
+    }
+    const roomId = String(conversationId);
+    const me = String(req.user._id);
+    let conv = null;
+    try { conv = await Conversation.findById(roomId); } catch (_) {}
+    if (!conv) return res.status(404).json({ error: 'Conversa não encontrada' });
+    const isParticipant = (conv.participants || []).some(p => String(p) === me);
+    if (!isParticipant) return res.status(403).json({ error: 'Usuário não participa da conversa' });
+
+    const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const message = {
+      id: Date.now(),
+      senderId: me,
+      senderName: req.user.name || req.user.email,
+      text: String(text),
+      time,
+      status: 'delivered',
+      clientId: clientId || null
+    };
+
+    // Persistir
+    try {
+      const cm = new ChatMessage({
+        conversationId: roomId,
+        senderId: me,
+        senderName: message.senderName,
+        text: message.text,
+        time: message.time,
+        status: message.status
+      });
+      await cm.save();
+    } catch (_) {}
+
+    // Emitir via Socket.IO para sala
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.to(roomId).emit('chat:message', { conversationId: roomId, message });
+      }
+    } catch (_) {}
+
+    return res.json({ ok: true, conversationId: roomId, message });
+  } catch (err) {
+    console.error('Erro em POST /messages:', err);
+    res.status(500).json({ error: 'Falha ao enviar mensagem' });
+  }
+});

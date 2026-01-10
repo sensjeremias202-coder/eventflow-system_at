@@ -104,6 +104,11 @@ router.post('/', authMiddleware, async (req, res) => {
       createdBy: req.user._id
     });
     await ev.save();
+    // Notifica o próprio usuário (outros dispositivos) que um evento foi criado
+    try {
+      const io = req.app.get('io');
+      if (io) io.to(`user:${String(req.user._id)}`).emit('event:created', { event: toClient(ev) });
+    } catch (_) {}
     res.status(201).json(toClient(ev));
   } catch (err) {
     console.error('Erro ao criar evento:', err);
@@ -172,3 +177,22 @@ router.post('/:id/unregister', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+// Lista apenas eventos criados pelo usuário autenticado
+router.get('/mine', authMiddleware, async (req, res) => {
+  try {
+    const { page = 1, limit = 50 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    const filter = { createdBy: req.user._id };
+    let query = Event.find(filter);
+    try {
+      if (typeof query.sort === 'function') query = query.sort({ date: 1, time: 1 });
+      if (typeof query.skip === 'function') query = query.skip(skip);
+      if (typeof query.limit === 'function') query = query.limit(Number(limit));
+    } catch (_) {}
+    const events = await Promise.resolve(query);
+    res.json({ items: (events || []).map(toClient), count: Array.isArray(events) ? events.length : 0 });
+  } catch (err) {
+    console.error('Erro ao listar meus eventos:', err);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
