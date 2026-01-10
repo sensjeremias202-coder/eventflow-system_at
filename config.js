@@ -39,7 +39,8 @@
   try {
     var host = (typeof location !== 'undefined' ? location.hostname : '');
     var isLocal = /^(localhost|127\.0\.0\.1)$/i.test(String(host));
-    window.API_BASE_URL = isLocal ? 'http://localhost:5000' : 'https://eventflow-system.onrender.com';
+    // Preferir porta 5100 em ambiente local (compatível com o .env atual)
+    window.API_BASE_URL = isLocal ? 'http://localhost:5100' : 'https://eventflow-system.onrender.com';
     console.log('[Config] API via ambiente:', window.API_BASE_URL, 'Host:', host);
     // Define GOOGLE_CLIENT_ID padrão em produção caso não esteja setado
     if (!isLocal) {
