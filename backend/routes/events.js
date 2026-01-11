@@ -128,6 +128,17 @@ router.put('/:id', authMiddleware, async (req, res) => {
       if (req.body[f] !== undefined) ev[f] = req.body[f];
     });
     await ev.save();
+    // Notificar atualização para dispositivos do criador e do usuário que realizou a ação
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        const payload = { event: toClient(ev) };
+        io.to(`user:${String(ev.createdBy)}`).emit('event:updated', payload);
+        if (String(ev.createdBy) !== String(req.user._id)) {
+          io.to(`user:${String(req.user._id)}`).emit('event:updated', payload);
+        }
+      }
+    } catch (_) {}
     res.json(toClient(ev));
   } catch (err) {
     res.status(400).json({ error: 'Falha ao atualizar evento' });
@@ -141,6 +152,17 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     if (!ev) return res.status(404).json({ error: 'Evento não encontrado' });
     if (!canEdit(req.user, ev)) return res.status(403).json({ error: 'Sem permissão' });
     await ev.deleteOne();
+    // Notificar exclusão para dispositivos do criador e do usuário que realizou a ação
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        const payload = { id: String(ev._id) };
+        io.to(`user:${String(ev.createdBy)}`).emit('event:deleted', payload);
+        if (String(ev.createdBy) !== String(req.user._id)) {
+          io.to(`user:${String(req.user._id)}`).emit('event:deleted', payload);
+        }
+      }
+    } catch (_) {}
     res.json({ message: 'Evento excluído com sucesso' });
   } catch (err) {
     res.status(400).json({ error: 'Falha ao excluir evento' });
@@ -157,6 +179,14 @@ router.post('/:id/register', authMiddleware, async (req, res) => {
     if (ev.capacity && ev.attendees.length >= ev.capacity) return res.status(400).json({ error: 'Evento lotado' });
     ev.attendees.push(req.user._id);
     await ev.save();
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        const payload = { event: toClient(ev) };
+        io.to(`user:${String(ev.createdBy)}`).emit('event:updated', payload);
+        io.to(`user:${String(req.user._id)}`).emit('event:updated', payload);
+      }
+    } catch (_) {}
     res.json(toClient(ev));
   } catch (err) {
     res.status(400).json({ error: 'Falha ao inscrever no evento' });
@@ -170,6 +200,14 @@ router.post('/:id/unregister', authMiddleware, async (req, res) => {
     if (!ev) return res.status(404).json({ error: 'Evento não encontrado' });
     ev.attendees = ev.attendees.filter(a => String(a) !== String(req.user._id));
     await ev.save();
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        const payload = { event: toClient(ev) };
+        io.to(`user:${String(ev.createdBy)}`).emit('event:updated', payload);
+        io.to(`user:${String(req.user._id)}`).emit('event:updated', payload);
+      }
+    } catch (_) {}
     res.json(toClient(ev));
   } catch (err) {
     res.status(400).json({ error: 'Falha ao cancelar inscrição' });

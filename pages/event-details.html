@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Detalhes do Evento</title>
   <link rel="stylesheet" href="../styles.css" />
+  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+  <script>
+    if (!window.io) {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/socket.io-client@4.7.4/dist/socket.io.min.js';
+      document.head.appendChild(s);
+    }
+  </script>
   <script src="../config.js"></script>
   <script src="../api.js"></script>
   <style>
@@ -261,6 +269,28 @@
 
       initActions();
       loadEvent();
+
+      // Conectar Socket.IO para refletir alterações em tempo real
+      try {
+        const base = (window.api && window.api.url) ? window.api.url : ((typeof window.API_BASE_URL !== 'undefined' && window.API_BASE_URL) ? window.API_BASE_URL : '');
+        window.evDetailSocket = io(base, {
+          transports: ['websocket','polling'],
+          auth: { token: api.token.get() }
+        });
+        window.evDetailSocket.on('event:updated', ({ event }) => {
+          if (String(event.id || event._id) === String(eventId)) {
+            renderEvent(event);
+            setBanner('syncing', 'Evento atualizado em outro dispositivo.');
+            localBadge.style.display = 'none';
+          }
+        });
+        window.evDetailSocket.on('event:deleted', ({ id }) => {
+          if (String(id) === String(eventId)) {
+            setBanner('offline', 'Este evento foi excluído.');
+            setTimeout(() => { window.location.href = 'events.html'; }, 1200);
+          }
+        });
+      } catch (_) {}
     })();
   </script>
 </body>
