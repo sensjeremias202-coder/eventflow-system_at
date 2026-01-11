@@ -1221,8 +1221,26 @@
                 case 'regen-banner':
                     (async () => {
                         try {
+                            const exists = await ensureEventExistsOnServer(eventId);
+                            if (!exists) {
+                                const confirmRecreate = confirm('Este evento não existe no servidor. Deseja recriá-lo agora para gerar o banner?');
+                                if (confirmRecreate) {
+                                    const ok = await recreateOnServer(eventId);
+                                    if (!ok) return;
+                                } else {
+                                    window.app?.showToast('Regeneração requer o evento no servidor.', 'info');
+                                    return;
+                                }
+                            }
                             const res = await api.post(`/events/${eventId}/regenerate-banner`, {}, { auth: true });
-                            if (!res.ok) { const body = await res.json().catch(()=>({})); throw new Error(body.error || 'Falha ao solicitar regeneração'); }
+                            const body = await res.json().catch(()=>({}));
+                            if (!res.ok) {
+                                if (res.status === 404) {
+                                    window.app?.showToast('Evento não encontrado no servidor.', 'error');
+                                    return;
+                                }
+                                throw new Error(body.error || 'Falha ao solicitar regeneração');
+                            }
                             window.app?.showToast('Gerando banner…', 'info');
                             try {
                                 const evLocal = EventflowData.events.find(e => String(e.id) === String(eventId));
@@ -1230,8 +1248,13 @@
                             } catch(_){}
                             loadEvents();
                         } catch(e) {
-                            window.offlineQueue && window.offlineQueue.enqueue('POST', `/events/${eventId}/regenerate-banner`, {}, { auth: true });
-                            window.app?.showToast('Sem conexão. Solicitação enfileirada.', 'warning');
+                            // Apenas enfileira se parecer erro de rede (sem resposta)
+                            if (e && (e.name === 'TypeError' || String(e.message||'').toLowerCase().includes('network'))) {
+                                window.offlineQueue && window.offlineQueue.enqueue('POST', `/events/${eventId}/regenerate-banner`, {}, { auth: true });
+                                window.app?.showToast('Sem conexão. Solicitação enfileirada.', 'warning');
+                            } else {
+                                window.app?.showToast('Não foi possível solicitar regeneração: ' + (e?.message || 'erro'), 'error');
+                            }
                         }
                     })();
                     break;
