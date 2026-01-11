@@ -15,6 +15,7 @@
   </script>
   <script src="../config.js"></script>
   <script src="../api.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Lobster&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
   <style>
     .container { max-width: 960px; margin: 0 auto; padding: 16px; }
     .header { display:flex; align-items:center; justify-content:space-between; }
@@ -541,8 +542,25 @@
       return { format, theme, accent };
     }
 
+    async function ensureBannerFonts(){ try { if (document.fonts && document.fonts.ready) { await document.fonts.ready; } } catch(_){} }
+
+    function drawLocationIcon(ctx, x, y, size, color){
+      const r = Math.max(6, Math.round(size*0.35));
+      ctx.save();
+      ctx.fillStyle = color; ctx.strokeStyle = color;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x, y + r);
+      ctx.lineTo(x - r*0.6, y + r*2.2);
+      ctx.lineTo(x + r*0.6, y + r*2.2);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.arc(x, y, r*0.35, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
     // Geração de banner adaptável via Canvas
     async function createEventBannerCanvas(ev, opts={}){
+      await ensureBannerFonts();
       const title = (ev && ev.title) || document.getElementById('eventTitle').textContent || 'Evento';
       const dateText = (ev && (ev.date || ev.startDate)) || document.getElementById('eventDate').textContent || '';
       const timeText = (ev && ev.time) || document.getElementById('eventTime').textContent || '';
@@ -585,8 +603,9 @@
       ctx.fillRect(0, 0, W, brandBarH);
       ctx.globalAlpha = 1;
       ctx.fillStyle = pal.brand;
-      ctx.font = `700 ${Math.round(brandBarH*0.6)}px Inter, Arial, sans-serif`;
-      ctx.fillText('Eventflow', 24, Math.round(brandBarH*0.75));
+      ctx.font = `700 ${Math.round(brandBarH*0.6)}px Impact, Haettenschweiler, 'Arial Black', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('Eventflow', Math.round(W/2), Math.round(brandBarH*0.75));
 
       // Centraliza textos e adiciona descrição
       ctx.textAlign = 'center';
@@ -596,12 +615,12 @@
       const titleMaxWidth = W - 120;
       let tSize = Math.round(H * (format==='story' ? 0.065 : format==='square' ? 0.085 : 0.095));
       ctx.fillStyle = pal.title;
-      ctx.font = `700 ${tSize}px Inter, Arial, sans-serif`;
+      ctx.font = `700 ${tSize}px 'Lobster', 'Segoe UI', Arial, sans-serif`;
       let titleLines = wrapText(ctx, String(title).toUpperCase(), titleMaxWidth);
       const minTSize = Math.round(H * 0.05);
       while (titleLines.length > 3 && tSize > minTSize) {
         tSize -= 2;
-        ctx.font = `700 ${tSize}px Inter, Arial, sans-serif`;
+        ctx.font = `700 ${tSize}px 'Lobster', 'Segoe UI', Arial, sans-serif`;
         titleLines = wrapText(ctx, String(title).toUpperCase(), titleMaxWidth);
       }
       let y = Math.round(H * 0.28);
@@ -610,15 +629,15 @@
       // Descrição do evento (menor, centralizada)
       const desc = (ev && ev.description) || document.getElementById('eventDescription')?.textContent || '';
       if (desc) {
-        let descSize = Math.round(tSize * 0.50);
+        let descSize = Math.round(tSize * 0.60);
         ctx.fillStyle = pal.sub;
-        ctx.font = `500 ${descSize}px Inter, Arial, sans-serif`;
+        ctx.font = `500 ${descSize}px 'Times New Roman', Times, serif`;
         let descLines = wrapText(ctx, String(desc), titleMaxWidth);
         const minDSize = Math.round(H * 0.02);
         const maxDescLines = (format === 'story') ? 3 : 2;
         while (descLines.length > maxDescLines && descSize > minDSize) {
           descSize -= 2;
-          ctx.font = `500 ${descSize}px Inter, Arial, sans-serif`;
+          ctx.font = `500 ${descSize}px 'Times New Roman', Times, serif`;
           descLines = wrapText(ctx, String(desc), titleMaxWidth);
         }
         descLines.slice(0,maxDescLines).forEach(line => { ctx.fillText(line, centerX, y); y += descSize + Math.round(descSize*0.2); });
@@ -643,15 +662,15 @@
       }
 
       // Local com quebra de linha dinâmica
-      let locSize = Math.round(subSize * 0.9);
+      let locSize = Math.round(subSize * 0.85);
       ctx.fillStyle = pal.sub;
-      ctx.font = `500 ${locSize}px Inter, Arial, sans-serif`;
+      ctx.font = `500 ${locSize}px Arial, 'Helvetica Neue', Helvetica, sans-serif`;
       const locLine = locText ? `Local: ${locText}` : '';
       let locLines = locLine ? wrapText(ctx, String(locLine), titleMaxWidth) : [];
       const maxLocLines = (format === 'story') ? 2 : 2;
       while (locLines.length > maxLocLines && locSize > minSubSize) {
         locSize -= 2;
-        ctx.font = `500 ${locSize}px Inter, Arial, sans-serif`;
+        ctx.font = `500 ${locSize}px Arial, 'Helvetica Neue', Helvetica, sans-serif`;
         locLines = wrapText(ctx, String(locLine), titleMaxWidth);
       }
 
@@ -663,12 +682,14 @@
 
       // Desenhar data/hora
       dtLines.slice(0, maxDtLines).forEach(line => { ctx.fillText(line, centerX, y + Math.round(subSize*0.2)); y += subSize + Math.round(subSize*0.6); });
+      // Ícone de localização
+      if (locLines.length > 0) { drawLocationIcon(ctx, centerX, y - Math.round(locSize*0.8), Math.round(locSize*0.9), pal.sub); }
       // Desenhar local
       locLines.slice(0, maxLocLines).forEach(line => { ctx.fillText(line, centerX, y); y += locSize + Math.round(subSize*0.4); });
 
       // Rodapé
       ctx.fillStyle = '#9ca3af';
-      ctx.font = `400 ${Math.round(H*0.025)}px Inter, Arial, sans-serif`;
+      ctx.font = `400 ${Math.round(H*0.025)}px 'Playfair Display', Georgia, serif`;
       ctx.fillText('Crie, compartilhe e participe de eventos.', centerX, H - Math.round(H*0.03));
 
       return canvas;
