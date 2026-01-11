@@ -623,11 +623,19 @@
         descLines.slice(0,2).forEach(line => { ctx.fillText(line, centerX, y); y += descSize + Math.round(descSize*0.2); });
       }
 
+      // Espaçamento mínimo do rodapé por formato
+      const bottomPadRatio = (format==='story' ? 0.18 : format==='square' ? 0.12 : 0.10);
+      const bottomSafeY = Math.round(H * (1 - bottomPadRatio));
+
       // Subinfo (data/hora)
       const subSize = Math.round(tSize * 0.55);
       ctx.fillStyle = accent || pal.sub;
       ctx.font = `600 ${subSize}px Inter, Arial, sans-serif`;
       const dtLine = (dateText && timeText) ? `${dateText} • ${timeText}` : (dateText || timeText || '');
+      // Ajuste de posição para não colar no rodapé
+      const locPreviewSize = Math.round(subSize*0.9);
+      const expectedBlock = (dtLine ? (subSize + Math.round(subSize*0.6)) : 0) + (locText ? locPreviewSize + Math.round(subSize*0.8) : 0);
+      if (y + expectedBlock > bottomSafeY) { y = Math.max(Math.round(H*0.22), bottomSafeY - expectedBlock); }
       if (dtLine) { ctx.fillText(dtLine, centerX, y + Math.round(subSize*0.2)); y += subSize + Math.round(subSize*0.6); }
 
       // Local
