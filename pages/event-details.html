@@ -535,11 +535,32 @@
       } catch(e){ console.error('Falha ao definir banner de teste', e); }
     }
 
+    function getBannerStyleOptionsFromStorage(){
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const eventId = params.get('id');
+        const map = JSON.parse(localStorage.getItem('bannerStyleOptions') || '{}');
+        return (eventId && map[eventId]) ? map[eventId] : null;
+      } catch(_) { return null; }
+    }
+
+    function setBannerStyleOptionsToStorage(opts){
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const eventId = params.get('id');
+        if (!eventId) return;
+        const map = JSON.parse(localStorage.getItem('bannerStyleOptions') || '{}');
+        map[eventId] = opts || {};
+        localStorage.setItem('bannerStyleOptions', JSON.stringify(map));
+      } catch(_){}
+    }
+
     function getBannerOptionsFromUI(ev){
       const format = (document.getElementById('bannerFormat')?.value) || 'wide';
       const theme = (document.getElementById('bannerTheme')?.value) || 'auto';
       const accent = (document.getElementById('accentColor')?.value) || '#f59e0b';
-      return { format, theme, accent };
+      const style = getBannerStyleOptionsFromStorage() || {};
+      return { format, theme, accent, ...style };
     }
 
     async function ensureBannerFonts(){ try { if (document.fonts && document.fonts.ready) { await document.fonts.ready; } } catch(_){} }
@@ -599,11 +620,13 @@
 
       // Faixa superior com marca
       const brandBarH = Math.max(40, Math.round(H*0.06));
-      ctx.fillStyle = pal.brand; ctx.globalAlpha = 0.25;
+      const brandColor = opts.brandColor || pal.brand;
+      const brandFont = opts.brandFont || "Impact, Haettenschweiler, 'Arial Black', sans-serif";
+      ctx.fillStyle = brandColor; ctx.globalAlpha = 0.25;
       ctx.fillRect(0, 0, W, brandBarH);
       ctx.globalAlpha = 1;
-      ctx.fillStyle = pal.brand;
-      ctx.font = `700 ${Math.round(brandBarH*0.6)}px Impact, Haettenschweiler, 'Arial Black', sans-serif`;
+      ctx.fillStyle = brandColor;
+      ctx.font = `700 ${Math.round(brandBarH*(opts.brandScale || 0.6))}px ${brandFont}`;
       ctx.textAlign = 'center';
       ctx.fillText('Eventflow', Math.round(W/2), Math.round(brandBarH*0.75));
 
@@ -613,15 +636,17 @@
 
       // Título principal com ajuste dinâmico
       const titleMaxWidth = W - 120;
-      let tSize = Math.round(H * (format==='story' ? 0.065 : format==='square' ? 0.085 : 0.095));
-      ctx.fillStyle = pal.title;
-      ctx.font = `700 ${tSize}px 'Lobster', 'Segoe UI', Arial, sans-serif`;
-      let titleLines = wrapText(ctx, String(title).toUpperCase(), titleMaxWidth);
+      let tSize = Math.round(H * (opts.titleScale || (format==='story' ? 0.065 : format==='square' ? 0.085 : 0.095)));
+      const titleFont = opts.titleFont || "'Lobster', 'Segoe UI', Arial, sans-serif";
+      const titleUpper = opts.titleUppercase !== false; // default true
+      ctx.fillStyle = opts.titleColor || pal.title;
+      ctx.font = `700 ${tSize}px ${titleFont}`;
+      let titleLines = wrapText(ctx, String(titleUpper ? String(title).toUpperCase() : String(title)), titleMaxWidth);
       const minTSize = Math.round(H * 0.05);
       while (titleLines.length > 3 && tSize > minTSize) {
         tSize -= 2;
-        ctx.font = `700 ${tSize}px 'Lobster', 'Segoe UI', Arial, sans-serif`;
-        titleLines = wrapText(ctx, String(title).toUpperCase(), titleMaxWidth);
+        ctx.font = `700 ${tSize}px ${titleFont}`;
+        titleLines = wrapText(ctx, String(titleUpper ? String(title).toUpperCase() : String(title)), titleMaxWidth);
       }
       let y = Math.round(H * 0.28);
       titleLines.slice(0,3).forEach(line => { ctx.fillText(line, centerX, y); y += tSize + Math.round(tSize*0.15); });
@@ -629,15 +654,16 @@
       // Descrição do evento (menor, centralizada)
       const desc = (ev && ev.description) || document.getElementById('eventDescription')?.textContent || '';
       if (desc) {
-        let descSize = Math.round(tSize * 0.60);
-        ctx.fillStyle = pal.sub;
-        ctx.font = `500 ${descSize}px 'Times New Roman', Times, serif`;
+        let descSize = Math.round(tSize * (opts.descRatio || 0.60));
+        const descFont = opts.descFont || "'Times New Roman', Times, serif";
+        ctx.fillStyle = opts.descColor || pal.sub;
+        ctx.font = `500 ${descSize}px ${descFont}`;
         let descLines = wrapText(ctx, String(desc), titleMaxWidth);
         const minDSize = Math.round(H * 0.02);
         const maxDescLines = (format === 'story') ? 3 : 2;
         while (descLines.length > maxDescLines && descSize > minDSize) {
           descSize -= 2;
-          ctx.font = `500 ${descSize}px 'Times New Roman', Times, serif`;
+          ctx.font = `500 ${descSize}px ${descFont}`;
           descLines = wrapText(ctx, String(desc), titleMaxWidth);
         }
         descLines.slice(0,maxDescLines).forEach(line => { ctx.fillText(line, centerX, y); y += descSize + Math.round(descSize*0.2); });
@@ -649,28 +675,30 @@
 
       // Subinfo (data/hora) com quebra de linha dinâmica
       let subSize = Math.round(tSize * 0.55);
-      ctx.fillStyle = accent || pal.sub;
-      ctx.font = `600 ${subSize}px Inter, Arial, sans-serif`;
+      const subFont = opts.subFont || "Inter, Arial, sans-serif";
+      ctx.fillStyle = opts.subColor || accent || pal.sub;
+      ctx.font = `600 ${subSize}px ${subFont}`;
       const dtLine = (dateText && timeText) ? `${dateText} • ${timeText}` : (dateText || timeText || '');
       let dtLines = dtLine ? wrapText(ctx, String(dtLine), titleMaxWidth) : [];
       const minSubSize = Math.round(H * 0.02);
       const maxDtLines = (format === 'story') ? 2 : 2;
       while (dtLines.length > maxDtLines && subSize > minSubSize) {
         subSize -= 2;
-        ctx.font = `600 ${subSize}px Inter, Arial, sans-serif`;
+        ctx.font = `600 ${subSize}px ${subFont}`;
         dtLines = wrapText(ctx, String(dtLine), titleMaxWidth);
       }
 
       // Local com quebra de linha dinâmica
-      let locSize = Math.round(subSize * 0.85);
-      ctx.fillStyle = pal.sub;
-      ctx.font = `500 ${locSize}px Arial, 'Helvetica Neue', Helvetica, sans-serif`;
+      let locSize = Math.round(subSize * (opts.locRatio || 0.85));
+      const locFont = opts.locFont || "Arial, 'Helvetica Neue', Helvetica, sans-serif";
+      ctx.fillStyle = opts.locColor || pal.sub;
+      ctx.font = `500 ${locSize}px ${locFont}`;
       const locLine = locText ? `Local: ${locText}` : '';
       let locLines = locLine ? wrapText(ctx, String(locLine), titleMaxWidth) : [];
       const maxLocLines = (format === 'story') ? 2 : 2;
       while (locLines.length > maxLocLines && locSize > minSubSize) {
         locSize -= 2;
-        ctx.font = `500 ${locSize}px Arial, 'Helvetica Neue', Helvetica, sans-serif`;
+        ctx.font = `500 ${locSize}px ${locFont}`;
         locLines = wrapText(ctx, String(locLine), titleMaxWidth);
       }
 
@@ -683,13 +711,14 @@
       // Desenhar data/hora
       dtLines.slice(0, maxDtLines).forEach(line => { ctx.fillText(line, centerX, y + Math.round(subSize*0.2)); y += subSize + Math.round(subSize*0.6); });
       // Ícone de localização
-      if (locLines.length > 0) { drawLocationIcon(ctx, centerX, y - Math.round(locSize*0.8), Math.round(locSize*0.9), pal.sub); }
+      if (locLines.length > 0) { drawLocationIcon(ctx, centerX, y - Math.round(locSize*0.8), Math.round(locSize*0.9), (opts.locColor || pal.sub)); }
       // Desenhar local
       locLines.slice(0, maxLocLines).forEach(line => { ctx.fillText(line, centerX, y); y += locSize + Math.round(subSize*0.4); });
 
       // Rodapé
-      ctx.fillStyle = '#9ca3af';
-      ctx.font = `400 ${Math.round(H*0.025)}px 'Playfair Display', Georgia, serif`;
+      const footerFont = opts.footerFont || "'Playfair Display', Georgia, serif";
+      ctx.fillStyle = opts.footerColor || '#9ca3af';
+      ctx.font = `400 ${Math.round(H*(opts.footerScale || 0.025))}px ${footerFont}`;
       ctx.fillText('Crie, compartilhe e participe de eventos.', centerX, H - Math.round(H*0.03));
 
       return canvas;
@@ -724,6 +753,197 @@
       ].filter(Boolean);
       return lines.join('\n');
     }
+  </script>
+  <style>
+    .banner-editor-fab { position: fixed; right: 20px; bottom: 20px; z-index: 9999; padding: 10px 14px; border-radius: 999px; background: #111827; color: #fff; border: 1px solid #374151; box-shadow: 0 4px 12px rgba(0,0,0,0.2); cursor: pointer; }
+    .banner-editor-modal { position: fixed; inset: 0; display: none; background: rgba(0,0,0,0.55); z-index: 9998; align-items: center; justify-content: center; }
+    .banner-editor-card { width: 92vw; max-width: 720px; max-height: 84vh; overflow: auto; background: #111827; color: #e5e7eb; border: 1px solid #374151; border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
+    .banner-editor-card header { padding: 14px 16px; border-bottom: 1px solid #374151; font-weight: 700; }
+    .banner-editor-card section { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 16px; }
+    .banner-editor-card .row { display: flex; gap: 8px; align-items: center; }
+    .banner-editor-card footer { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 16px; border-top: 1px solid #374151; }
+    .banner-editor-card select, .banner-editor-card input[type="color"], .banner-editor-card input[type="range"] { width: 100%; background: #0f172a; color: #e5e7eb; border: 1px solid #374151; border-radius: 6px; padding: 6px; }
+    .banner-editor-card label { font-size: 12px; color: #9ca3af; }
+    .btn { padding: 8px 12px; border-radius: 8px; border: 1px solid #374151; background: #1f2937; color: #e5e7eb; cursor: pointer; }
+    .btn.primary { background: #2563eb; border-color: #1d4ed8; }
+  </style>
+
+  <button id="openBannerEditorBtn" class="banner-editor-fab">Editar banner</button>
+  <div id="bannerEditorModal" class="banner-editor-modal" aria-hidden="true">
+    <div class="banner-editor-card" role="dialog" aria-modal="true" aria-labelledby="bannerEditorTitle">
+      <header id="bannerEditorTitle">Editar estilo do banner</header>
+      <section>
+        <div>
+          <label for="be-brand-font">Fonte da marca (Eventflow)</label>
+          <select id="be-brand-font">
+            <option value="Impact, Haettenschweiler, 'Arial Black', sans-serif">Impact</option>
+            <option value="'Arial Black', Arial, sans-serif">Arial Black</option>
+            <option value="Arial, sans-serif">Arial</option>
+          </select>
+        </div>
+        <div>
+          <label for="be-brand-color">Cor da marca</label>
+          <input id="be-brand-color" type="color" value="#fb923c" />
+        </div>
+
+        <div>
+          <label for="be-title-font">Fonte do título</label>
+          <select id="be-title-font">
+            <option value="'Lobster', 'Segoe UI', Arial, sans-serif">Lobster</option>
+            <option value="Arial, 'Helvetica Neue', Helvetica, sans-serif">Arial</option>
+            <option value="Inter, Arial, sans-serif">Inter</option>
+            <option value="'Times New Roman', Times, serif">Times New Roman</option>
+            <option value="'Playfair Display', Georgia, serif">Playfair Display</option>
+          </select>
+          <div class="row">
+            <input id="be-title-uppercase" type="checkbox" checked />
+            <label for="be-title-uppercase">Título em CAIXA ALTA</label>
+          </div>
+        </div>
+        <div>
+          <label for="be-title-color">Cor do título</label>
+          <input id="be-title-color" type="color" value="#ffffff" />
+        </div>
+
+        <div>
+          <label for="be-desc-font">Fonte da descrição</label>
+          <select id="be-desc-font">
+            <option value="'Times New Roman', Times, serif">Times New Roman</option>
+            <option value="Arial, 'Helvetica Neue', Helvetica, sans-serif">Arial</option>
+            <option value="Inter, Arial, sans-serif">Inter</option>
+            <option value="'Playfair Display', Georgia, serif">Playfair Display</option>
+          </select>
+          <label for="be-desc-ratio">Tamanho relativo da descrição</label>
+          <input id="be-desc-ratio" type="range" min="0.40" max="0.80" step="0.05" value="0.60" />
+        </div>
+        <div>
+          <label for="be-desc-color">Cor da descrição</label>
+          <input id="be-desc-color" type="color" value="#fde68a" />
+        </div>
+
+        <div>
+          <label for="be-sub-font">Fonte de data/hora</label>
+          <select id="be-sub-font">
+            <option value="Inter, Arial, sans-serif">Inter</option>
+            <option value="Arial, 'Helvetica Neue', Helvetica, sans-serif">Arial</option>
+          </select>
+        </div>
+        <div>
+          <label for="be-sub-color">Cor de data/hora</label>
+          <input id="be-sub-color" type="color" value="#fde68a" />
+        </div>
+
+        <div>
+          <label for="be-loc-font">Fonte do local</label>
+          <select id="be-loc-font">
+            <option value="Arial, 'Helvetica Neue', Helvetica, sans-serif">Arial</option>
+            <option value="Inter, Arial, sans-serif">Inter</option>
+          </select>
+          <label for="be-loc-ratio">Tamanho relativo do local</label>
+          <input id="be-loc-ratio" type="range" min="0.70" max="0.95" step="0.05" value="0.85" />
+        </div>
+        <div>
+          <label for="be-loc-color">Cor do local</label>
+          <input id="be-loc-color" type="color" value="#bbf7d0" />
+        </div>
+
+        <div>
+          <label for="be-footer-font">Fonte do rodapé</label>
+          <select id="be-footer-font">
+            <option value="'Playfair Display', Georgia, serif">Playfair Display</option>
+            <option value="Arial, 'Helvetica Neue', Helvetica, sans-serif">Arial</option>
+            <option value="Inter, Arial, sans-serif">Inter</option>
+            <option value="'Times New Roman', Times, serif">Times New Roman</option>
+          </select>
+        </div>
+        <div>
+          <label for="be-footer-color">Cor do rodapé</label>
+          <input id="be-footer-color" type="color" value="#9ca3af" />
+        </div>
+      </section>
+      <footer>
+        <button id="be-cancel" class="btn">Cancelar</button>
+        <button id="be-apply" class="btn">Aplicar</button>
+        <button id="be-save" class="btn primary">Salvar</button>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const openBtn = document.getElementById('openBannerEditorBtn');
+      const modal = document.getElementById('bannerEditorModal');
+      const cancel = document.getElementById('be-cancel');
+      const apply = document.getElementById('be-apply');
+      const save = document.getElementById('be-save');
+      const fields = {
+        brandFont: document.getElementById('be-brand-font'),
+        brandColor: document.getElementById('be-brand-color'),
+        titleFont: document.getElementById('be-title-font'),
+        titleColor: document.getElementById('be-title-color'),
+        titleUppercase: document.getElementById('be-title-uppercase'),
+        descFont: document.getElementById('be-desc-font'),
+        descColor: document.getElementById('be-desc-color'),
+        descRatio: document.getElementById('be-desc-ratio'),
+        subFont: document.getElementById('be-sub-font'),
+        subColor: document.getElementById('be-sub-color'),
+        locFont: document.getElementById('be-loc-font'),
+        locColor: document.getElementById('be-loc-color'),
+        locRatio: document.getElementById('be-loc-ratio'),
+        footerFont: document.getElementById('be-footer-font'),
+        footerColor: document.getElementById('be-footer-color')
+      };
+      function open(){
+        const saved = getBannerStyleOptionsFromStorage() || {};
+        Object.entries(fields).forEach(([k, el]) => {
+          if (!el) return;
+          const val = saved[k];
+          if (val != null) {
+            if (el.type === 'checkbox') el.checked = !!val;
+            else el.value = String(val);
+          }
+        });
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden','false');
+      }
+      function close(){ modal.style.display = 'none'; modal.setAttribute('aria-hidden','true'); }
+      function collect(){
+        return {
+          brandFont: fields.brandFont?.value,
+          brandColor: fields.brandColor?.value,
+          titleFont: fields.titleFont?.value,
+          titleColor: fields.titleColor?.value,
+          titleUppercase: !!fields.titleUppercase?.checked,
+          descFont: fields.descFont?.value,
+          descColor: fields.descColor?.value,
+          descRatio: Number(fields.descRatio?.value||0.60),
+          subFont: fields.subFont?.value,
+          subColor: fields.subColor?.value,
+          locFont: fields.locFont?.value,
+          locColor: fields.locColor?.value,
+          locRatio: Number(fields.locRatio?.value||0.85),
+          footerFont: fields.footerFont?.value,
+          footerColor: fields.footerColor?.value
+        };
+      }
+      async function applyNow(saveAlso){
+        const style = collect();
+        if (saveAlso) setBannerStyleOptionsToStorage(style);
+        const params = new URLSearchParams(window.location.search);
+        const eventId = params.get('id');
+        const ev = window.currentEvent || null;
+        const opts = { ...getBannerOptionsFromUI(ev), ...style };
+        const canvas = await createEventBannerCanvas(ev, opts);
+        const img = document.getElementById('bannerImg');
+        if (img) img.src = canvas.toDataURL('image/png');
+        window.app?.showToast && window.app.showToast(saveAlso ? 'Estilo salvo e aplicado.' : 'Estilo aplicado.', 'success');
+      }
+      openBtn?.addEventListener('click', open);
+      cancel?.addEventListener('click', close);
+      apply?.addEventListener('click', () => applyNow(false));
+      save?.addEventListener('click', async () => { await applyNow(true); close(); });
+      modal?.addEventListener('click', (e) => { if (e.target === modal) close(); });
+    })();
   </script>
 </body>
 </html>
