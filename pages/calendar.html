@@ -785,6 +785,24 @@
         let currentMonth = currentDate.getMonth();
         let currentYear = currentDate.getFullYear();
 
+        // Utilitários de data locais (evitam offset UTC e dia anterior)
+        function parseLocalDate(yyyyMmDd){
+            if (!yyyyMmDd || typeof yyyyMmDd !== 'string') return new Date(NaN);
+            const [y,m,d] = yyyyMmDd.split('-').map(Number);
+            return new Date(y, (m||1)-1, d||1);
+        }
+        function parseLocalDateTime(yyyyMmDd, hhMm){
+            const [y,m,d] = (yyyyMmDd||'').split('-').map(Number);
+            const [hh,mm] = (hhMm||'00:00').split(':').map(Number);
+            return new Date(y, (m||1)-1, d||1, hh||0, mm||0, 0, 0);
+        }
+        function toLocalDateInput(date){
+            const y = date.getFullYear();
+            const m = String(date.getMonth()+1).padStart(2,'0');
+            const d = String(date.getDate()).padStart(2,'0');
+            return `${y}-${m}-${d}`;
+        }
+
         // Função para renderizar calendário
         function renderCalendar() {
             const monthNames = [
@@ -807,7 +825,7 @@
             const eventsByDate = {};
             
             events.forEach(event => {
-                const eventDate = new Date(event.date);
+                const eventDate = parseLocalDate(event.date);
                 if (eventDate.getMonth() === currentMonth && eventDate.getFullYear() === currentYear) {
                     const day = eventDate.getDate();
                     if (!eventsByDate[day]) {
@@ -922,9 +940,10 @@
             const events = EventflowData.events || [];
             const today = new Date();
             
+            const now = new Date();
             const upcomingEvents = events
-                .filter(event => new Date(event.date) >= today)
-                .sort((a, b) => new Date(a.date) - new Date(b.date))
+                .filter(event => parseLocalDateTime(event.date, event.time) >= now)
+                .sort((a, b) => parseLocalDateTime(a.date, a.time) - parseLocalDateTime(b.date, b.time))
                 .slice(0, 5);
 
             if (upcomingEvents.length === 0) {
@@ -938,8 +957,7 @@
             }
 
             upcomingEventsList.innerHTML = upcomingEvents.map(event => {
-                const date = new Date(event.date);
-                const time = formatTime(date);
+                const time = event.time || '—';
                 const color = getEventColor(event.category);
                 
                 return `
@@ -1034,8 +1052,7 @@
         function showEventDetails(eventId) {
             const event = EventflowData.events.find(e => e.id == eventId);
             if (!event) return;
-
-            const date = new Date(event.date);
+            const date = parseLocalDate(event.date);
             const dateStr = date.toLocaleDateString('pt-BR', {
                 weekday: 'long',
                 day: 'numeric',
@@ -1072,13 +1089,13 @@
             
             // Preencher data se fornecida
             if (date) {
-                const dateStr = date.toISOString().split('T')[0];
+                const dateStr = toLocalDateInput(date);
                 document.getElementById('eventDate').value = dateStr;
                 document.getElementById('eventTime').value = '09:00';
             } else {
                 // Data atual como padrão
-                const today = new Date().toISOString().split('T')[0];
-                document.getElementById('eventDate').value = today;
+                const todayLocal = toLocalDateInput(new Date());
+                document.getElementById('eventDate').value = todayLocal;
                 document.getElementById('eventTime').value = '09:00';
             }
             
