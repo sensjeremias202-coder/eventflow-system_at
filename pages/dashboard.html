@@ -773,6 +773,20 @@
         let currentMonth = currentDate.getMonth();
         let currentYear = currentDate.getFullYear();
 
+        // Utilitários de data locais para YYYY-MM-DD
+        function parseLocalYmd(ymd){
+            if (!ymd || typeof ymd !== 'string') return new Date(NaN);
+            const [y,m,d] = ymd.split('-').map(Number);
+            return new Date(y, (m||1)-1, d||1);
+        }
+        function monthShortBR(date){ return date.toLocaleDateString('pt-BR', { month: 'short' }); }
+        function toLocalDateInput(date){
+            const y = date.getFullYear();
+            const m = String(date.getMonth()+1).padStart(2,'0');
+            const d = String(date.getDate()).padStart(2,'0');
+            return `${y}-${m}-${d}`;
+        }
+
         // Função para atualizar estatísticas
         function updateStatistics() {
             const stats = EventflowData.getStatistics();
@@ -814,7 +828,7 @@
 
             // Dias do mês atual
             const today = new Date();
-            const eventDates = eventsData.map(event => new Date(event.date).getDate());
+            const eventDates = eventsData.map(event => parseLocalYmd(event.date).getDate());
             
             for (let day = 1; day <= daysInMonth; day++) {
                 const isToday = day === today.getDate() && 
@@ -855,13 +869,13 @@
             if (!timeline) return;
 
             const sortedEvents = [...eventsData]
-                .sort((a, b) => new Date(a.date) - new Date(b.date))
+                .sort((a, b) => parseLocalYmd(a.date) - parseLocalYmd(b.date))
                 .slice(0, 5);
 
             timeline.innerHTML = sortedEvents.map(event => {
-                const date = new Date(event.date);
+                const date = parseLocalYmd(event.date);
                 const day = date.getDate();
-                const month = date.toLocaleDateString('pt-BR', { month: 'short' });
+                const month = monthShortBR(date);
                 
                 return `
                     <div class="timeline-item" data-event-id="${event.id}">
@@ -968,7 +982,7 @@
 
         function showEventsForDate(day) {
             const date = new Date(currentYear, currentMonth, day);
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = toLocalDateInput(date);
             
             const eventsOnDate = eventsData.filter(event => 
                 event.date === dateStr
