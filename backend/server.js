@@ -15,7 +15,6 @@ const ChatMessage = require('./models/ChatMessage');
 const Conversation = require('./models/Conversation');
 const presence = require('./services/presence');
 const socialRoutes = require('./routes/social');
-const webhooksRoutes = require('./routes/webhooks');
 
 const app = express();
 const server = http.createServer(app);
@@ -40,7 +39,7 @@ app.use('/api/events', verifiedMiddleware, eventsRoutes);
 app.use('/api/users', verifiedMiddleware, usersRoutes);
 app.use('/api/chat', verifiedMiddleware, chatRoutes);
 app.use('/api/social', socialRoutes);
-app.use('/api/webhooks', webhooksRoutes);
+// Webhooks removidos: integração com automação de templates desativada
 // Social rotas (adicionadas abaixo)
 
 // Rota de teste

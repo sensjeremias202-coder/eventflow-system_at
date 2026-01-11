@@ -23,7 +23,6 @@ Este guia ensina a publicar o backend online usando Render e MongoDB Atlas.
    - `JWT_SECRET`: um segredo forte
    - `CORS_ORIGIN`: URLs do frontend separadas por vírgula (ex.: `https://seu-frontend.com,http://127.0.0.1:5500`)
   - `FRONTEND_BASE_URL`: URL pública do frontend (ex.: `https://sensjeremias202-coder.github.io/eventflow-system_at`)
-  - `BANNER_WEBHOOK_URL` (ou `ZAPIER_WEBHOOK_URL`/`MAKE_WEBHOOK_URL`): URL do webhook da sua automação (Zapier/Make) que irá gerar o banner no Canva e depois chamar `POST /api/webhooks/banner` com `{ eventId, bannerUrl }`.
 6. Deployará automaticamente; ao finalizar, você terá uma URL pública, ex.: `https://eventflow-backend.onrender.com`.
 
 ## Passo 3 — Apontar o frontend
@@ -41,18 +40,9 @@ Este guia ensina a publicar o backend online usando Render e MongoDB Atlas.
   ```
 - Fluxos de login/registro a partir das páginas: `login-firebase.html`, `register-firebase.html`.
 
-### Verificar automação de banners
-- Cheque status da configuração de webhook:
-  ```bash
-  curl https://SEU_BACKEND.onrender.com/api/webhooks/status
-  ```
-  - Esperado: `{"bannerWebhookConfigured":true,...}` quando `BANNER_WEBHOOK_URL` estiver definido.
-  - Se `false`, configure as variáveis acima e redeploy.
-
-### Fluxo da automação
-- Ao criar ou clicar em “Regerar banner”, o backend dispara `BANNER_WEBHOOK_URL` com os dados do evento.
-- Sua automação deve gerar o arquivo no Canva e chamar `POST /api/webhooks/banner` com JSON `{ eventId, bannerUrl }`.
-- O frontend passa a exibir “Banner pronto” e o botão “Abrir banner” nos cards.
+### Banners
+- Os banners são gerados localmente no frontend via Canvas.
+- Não há dependência de automações externas (Zapier/Make/Canva) nem webhooks.
 
 ## Alternativas
 - Railway, Fly.io, Azure App Service: utilize `backend/Dockerfile` para build e defina as envs.

@@ -62,7 +62,7 @@
           <button id="downloadPNGBtn" title="Baixar banner como PNG">⬇️ PNG</button>
           <button id="savePDFBtn" title="Salvar/Imprimir PDF">🖨️ PDF</button>
           <button id="shareWABtn" title="Compartilhar no WhatsApp">🟢 WhatsApp</button>
-          <button id="regenBannerBtn" title="Regerar banner">🔁 Regerar banner</button>
+          
         </div>
       </div>
       <div class="meta">
@@ -73,12 +73,7 @@
       </div>
       <div>
         <p id="eventDescription">—</p>
-        <div id="bannerPreview" class="banner-preview">
-          <img id="bannerImg" alt="Banner do Evento" />
-          <div class="banner-actions">
-            <a id="openBannerLink" class="back-link" href="#" target="_blank">Abrir banner ↗</a>
-          </div>
-        </div>
+        
       </div>
     </div>
   </main>
@@ -176,17 +171,7 @@
 
         // guarda referência para gerar banner
         window.currentEventDetail = ev;
-        // preview do banner
-        const bp = document.getElementById('bannerPreview');
-        const bi = document.getElementById('bannerImg');
-        const bl = document.getElementById('openBannerLink');
-        if (ev.bannerUrl) {
-          bi.src = ev.bannerUrl;
-          bl.href = ev.bannerUrl;
-          bp.style.display = 'block';
-        } else {
-          bp.style.display = 'none';
-        }
+        // Preview de banner removido (somente Canvas local)
       }
 
       async function ensureServerEvent(ev){
@@ -287,27 +272,7 @@
         const downloadPNGBtn = document.getElementById('downloadPNGBtn');
         const savePDFBtn = document.getElementById('savePDFBtn');
         const shareWABtn = document.getElementById('shareWABtn');
-        const regenBannerBtn = document.getElementById('regenBannerBtn');
-        regenBannerBtn.addEventListener('click', async () => {
-          try {
-            const ev = window.currentEventDetail || {};
-            const id = String(ev._id || ev.id);
-            const res = await api.post(`/events/${id}/regenerate-banner`, {}, { auth: true });
-            if (!res.ok) { const body = await res.json().catch(()=>({})); throw new Error(body.error || 'Falha ao solicitar regeneração'); }
-            setBanner('syncing', 'Gerando banner…');
-            try { regenBannerBtn.disabled = true; } catch(_){}
-            window.currentEventDetail.bannerGenerating = true;
-            alert('Solicitado: o banner será regenerado. Aguarde o retorno da automação.');
-          } catch(e) {
-            if (window.offlineQueue) {
-              const ev = window.currentEventDetail || {}; const id = String(ev._id || ev.id || '');
-              window.offlineQueue.enqueue('POST', `/events/${id}/regenerate-banner`, {}, { auth: true });
-              alert('Sem conexão. A solicitação de regenerar foi enfileirada.');
-            } else {
-              alert('Falha ao solicitar regeneração. Tente novamente.');
-            }
-          }
-        });
+        // Removido: ação de regenerar banner (automação desativada)
 
         editBtn.addEventListener('click', () => {
           // Redireciona para página de edição (se existir) ou usa events.html
@@ -325,19 +290,6 @@
         downloadPNGBtn.addEventListener('click', async () => {
           try {
             const ev = window.currentEventDetail || {};
-            if (ev.bannerUrl) {
-              const blob = await fetchBannerBlob(ev.bannerUrl);
-              if (blob) {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                const title = (ev.title || 'evento');
-                a.download = `banner-${title.replace(/\s+/g,'-').toLowerCase()}.png`;
-                document.body.appendChild(a); a.click();
-                setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
-                return;
-              }
-            }
             const canvas = await createEventBannerCanvas(ev);
             canvas.toBlob((blob) => {
               if (!blob) return;
@@ -355,7 +307,7 @@
         savePDFBtn.addEventListener('click', async () => {
           try {
             const ev = window.currentEventDetail || {};
-            const dataUrl = ev.bannerUrl ? ev.bannerUrl : (await createEventBannerCanvas(ev)).toDataURL('image/png');
+            const dataUrl = (await createEventBannerCanvas(ev)).toDataURL('image/png');
             const w = window.open('', '_blank');
             if (!w) { alert('Permita pop-ups para salvar o PDF'); return; }
             const html = `<!doctype html><html><head><meta charset="utf-8">
@@ -372,14 +324,8 @@
         shareWABtn.addEventListener('click', async () => {
           try {
             const ev = window.currentEventDetail || {};
-            let blob = null;
-            if (ev.bannerUrl) {
-              blob = await fetchBannerBlob(ev.bannerUrl);
-            }
-            if (!blob) {
-              const canvas = await createEventBannerCanvas(ev);
-              blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-            }
+            const canvas = await createEventBannerCanvas(ev);
+            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
             const file = blob ? new File([blob], 'banner-evento.png', { type: 'image/png' }) : null;
             const shareText = buildWhatsAppText(ev);
             // Web Share API com arquivo (Android/iOS suportado)
@@ -389,11 +335,7 @@
               // Fallback: abre WhatsApp com texto e link
               const waUrl = 'https://wa.me/?text=' + encodeURIComponent(shareText);
               window.open(waUrl, '_blank');
-              if (ev.bannerUrl) {
-                alert('Abra o banner pelo botão “Abrir banner” e anexe manualmente no WhatsApp.');
-              } else {
-                alert('O banner PNG foi gerado. Baixe-o e anexe manualmente no WhatsApp.');
-              }
+              alert('O banner PNG foi gerado. Baixe-o e anexe manualmente no WhatsApp.');
             }
           } catch (e) {
             alert('Não foi possível compartilhar no WhatsApp. Tente baixar o PNG e anexar manualmente.');
@@ -422,14 +364,8 @@
         window.evDetailSocket.on('event:updated', ({ event }) => {
           if (String(event.id || event._id) === String(eventId)) {
             renderEvent(event);
-            if (event.bannerUrl) {
-              setBanner('syncing', 'Banner atualizado.');
-              setTimeout(() => { syncBanner.style.display = 'none'; }, 1500);
-            } else {
-              setBanner('syncing', 'Evento atualizado em outro dispositivo.');
-            }
+            setBanner('syncing', 'Evento atualizado em outro dispositivo.');
             localBadge.style.display = 'none';
-            try { regenBannerBtn.disabled = false; } catch(_){}
           }
         });
         window.evDetailSocket.on('event:deleted', ({ id }) => {
@@ -500,13 +436,7 @@
 
       return canvas;
     }
-    async function fetchBannerBlob(url){
-      try {
-        const res = await fetch(url, { mode: 'cors' });
-        if (!res.ok) return null;
-        return await res.blob();
-      } catch (_) { return null; }
-    }
+    // Removido: fetchBannerBlob (automação de banners desativada)
 
     function wrapText(ctx, text, maxWidth){
       const words = String(text).split(/\s+/);

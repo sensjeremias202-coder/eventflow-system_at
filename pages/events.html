@@ -783,9 +783,7 @@
                         registered: e.registered || 0,
                         organizer: e.organizer || 'Organizador',
                         color: e.color || '#1976d2',
-                        attendees: e.attendees || [],
-                        // Inclui URL do banner gerado (Canva/Zapier/Make)
-                        bannerUrl: e.bannerUrl || null
+                        attendees: e.attendees || []
                     }));
                     try { saveToLocalStorage && saveToLocalStorage(); } catch(_) {}
                 }
@@ -847,10 +845,9 @@
                         </div>
                         
                         <div class="event-card-body">
-                            <h3 class="event-card-title">${event.title} ${localBadge} ${event.bannerUrl ? '<span class=\'banner-ready-badge\'>Banner pronto</span>' : ''}</h3>
+                            <h3 class="event-card-title">${event.title} ${localBadge}</h3>
                             <p class="event-card-description">${event.description}</p>
-                            ${event.bannerUrl ? `<div class=\"event-card-banner\"><img src=\"${event.bannerUrl}\" alt=\"Banner\" /></div>` : ''}
-                            ${event.bannerUrl ? `<div class=\"event-card-banner\"><img src=\"${event.bannerUrl}\" alt=\"Banner\" /></div>` : ''}
+                            
                             
                             <div class="event-card-details">
                                 <div class="event-card-detail">
@@ -890,10 +887,6 @@
                                     <i class="fas fa-trash"></i>
                                 </button>
                                 ${event.unsynced ? `<button class="action-btn" title="Recriar no servidor" data-action="recreate-server"><i class="fas fa-cloud-upload-alt"></i></button>` : ''}
-                                ${event.bannerUrl ? `<button class=\"action-btn\" title=\"Abrir banner\" data-action=\"open-banner\"><i class=\"fas fa-external-link-alt\"></i></button>` : ''}
-                                <button class="action-btn" title="Regerar banner" data-action="regen-banner">
-                                    <i class="fas fa-sync"></i>
-                                </button>
                                 <button class="action-btn" title="Baixar PNG" data-action="share-png">
                                     <i class="fas fa-file-image"></i>
                                 </button>
@@ -1004,7 +997,7 @@
                         </div>
                         
                         <div class="event-card-body">
-                            <h3 class="event-card-title">${event.title} ${localBadge} ${event.bannerUrl ? '<span class=\'banner-ready-badge\'>Banner pronto</span>' : ''}</h3>
+                            <h3 class="event-card-title">${event.title} ${localBadge}</h3>
                             <p class="event-card-description">${event.description}</p>
                             
                             <div class="event-card-details">
@@ -1028,10 +1021,6 @@
                                     <i class="fas fa-edit"></i>
                                 </button>
                                     ${event.unsynced ? `<button class=\"action-btn\" title=\"Recriar no servidor\" data-action=\"recreate-server\"><i class=\"fas fa-cloud-upload-alt\"></i></button>` : ''}
-                                    ${event.bannerUrl ? `<button class=\"action-btn\" title=\"Abrir banner\" data-action=\"open-banner\"><i class=\"fas fa-external-link-alt\"></i></button>` : ''}
-                                <button class="action-btn" title="Regerar banner" data-action="regen-banner">
-                                    <i class="fas fa-sync"></i>
-                                </button>
                                 <button class="action-btn" title="Baixar PNG" data-action="share-png">
                                     <i class="fas fa-file-image"></i>
                                 </button>
@@ -1149,10 +1138,7 @@
                         unregisterForEvent(eventId);
                     });
                     break;
-                case 'open-banner':
-                    if (event.bannerUrl) { window.open(event.bannerUrl, '_blank'); }
-                    else { window.app?.showToast('Este evento ainda não possui banner gerado.', 'info'); }
-                    break;
+                
                 case 'recreate-server':
                     (async () => {
                         const ok = await recreateOnServer(eventId);
@@ -1165,34 +1151,23 @@
                 case 'share-png':
                     (async () => {
                         try {
-                            let blob = null;
-                            if (event.bannerUrl) blob = await fetchBannerBlob(event.bannerUrl);
-                            if (blob) {
-                                const url = URL.createObjectURL(blob);
+                            const canvas = await createEventBannerCanvas(event);
+                            canvas.toBlob((blob2) => {
+                                if (!blob2) return;
+                                const url = URL.createObjectURL(blob2);
                                 const a = document.createElement('a');
                                 a.href = url;
                                 a.download = `banner-${String(event.title||'evento').replace(/\s+/g,'-').toLowerCase()}.png`;
                                 document.body.appendChild(a); a.click();
                                 setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
-                            } else {
-                                const canvas = await createEventBannerCanvas(event);
-                                canvas.toBlob((blob2) => {
-                                    if (!blob2) return;
-                                    const url = URL.createObjectURL(blob2);
-                                    const a = document.createElement('a');
-                                    a.href = url;
-                                    a.download = `banner-${String(event.title||'evento').replace(/\s+/g,'-').toLowerCase()}.png`;
-                                    document.body.appendChild(a); a.click();
-                                    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
-                                }, 'image/png');
-                            }
+                            }, 'image/png');
                         } catch (e) { window.app?.showToast('Falha ao gerar PNG', 'error'); }
                     })();
                     break;
                 case 'share-pdf':
                     (async () => {
                         try {
-                            const dataUrl = event.bannerUrl ? event.bannerUrl : (await createEventBannerCanvas(event)).toDataURL('image/png');
+                            const dataUrl = (await createEventBannerCanvas(event)).toDataURL('image/png');
                             const w = window.open('', '_blank');
                             if (!w) { alert('Permita pop-ups para salvar o PDF'); return; }
                             const html = `<!doctype html><html><head><meta charset="utf-8">
@@ -1208,14 +1183,8 @@
                 case 'share-wa':
                     (async () => {
                         try {
-                            let blob = null;
-                            if (event.bannerUrl) {
-                                blob = await fetchBannerBlob(event.bannerUrl);
-                            }
-                            if (!blob) {
-                                const canvas = await createEventBannerCanvas(event);
-                                blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-                            }
+                            const canvas = await createEventBannerCanvas(event);
+                            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
                             const file = blob ? new File([blob], 'banner-evento.png', { type: 'image/png' }) : null;
                             const text = buildWhatsAppText(event);
                             if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -1223,66 +1192,12 @@
                             } else {
                                 const waUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
                                 window.open(waUrl, '_blank');
-                                if (event.bannerUrl) window.app?.showToast('Abra o banner e anexe manualmente no WhatsApp (se necessário).', 'info');
-                                else window.app?.showToast('Baixe o PNG e anexe manualmente no WhatsApp (se necessário).', 'info');
+                                window.app?.showToast('Baixe o PNG e anexe manualmente no WhatsApp (se necessário).', 'info');
                             }
                         } catch (e) { window.app?.showToast('Não foi possível compartilhar no WhatsApp', 'error'); }
                     })();
                     break;
-                case 'regen-banner':
-                    (async () => {
-                        try {
-                            // Verificar se automação de banner está configurada no backend
-                            try {
-                                const st = await api.get('/webhooks/status', { auth: false });
-                                const sj = await st.json().catch(()=>({}));
-                                if (!st.ok || !sj.bannerWebhookConfigured) {
-                                    window.app?.showToast('Automação de banner não configurada no servidor. Configure o webhook para gerar banners.', 'warning');
-                                    return;
-                                }
-                            } catch(_) {}
-
-                            const exists = await ensureEventExistsOnServer(eventId);
-                            if (!exists) {
-                                const confirmRecreate = confirm('Este evento não existe no servidor. Deseja recriá-lo agora para gerar o banner?');
-                                if (confirmRecreate) {
-                                    const ok = await recreateOnServer(eventId);
-                                    if (!ok) return;
-                                } else {
-                                    window.app?.showToast('Regeneração requer o evento no servidor.', 'info');
-                                    return;
-                                }
-                            }
-                            const res = await api.post(`/events/${eventId}/regenerate-banner`, {}, { auth: true });
-                            const body = await res.json().catch(()=>({}));
-                            if (!res.ok) {
-                                if (res.status === 404) {
-                                    window.app?.showToast('Evento não encontrado no servidor.', 'error');
-                                    return;
-                                }
-                                if (res.status === 400) {
-                                    window.app?.showToast(body.error || 'Solicitação inválida: verifique a configuração do webhook.', 'error');
-                                    return;
-                                }
-                                throw new Error(body.error || 'Falha ao solicitar regeneração');
-                            }
-                            window.app?.showToast('Gerando banner…', 'info');
-                            try {
-                                const evLocal = EventflowData.events.find(e => String(e.id) === String(eventId));
-                                if (evLocal) { evLocal.bannerGenerating = true; saveToLocalStorage && saveToLocalStorage(); }
-                            } catch(_){}
-                            loadEvents();
-                        } catch(e) {
-                            // Apenas enfileira se parecer erro de rede (sem resposta)
-                            if (e && (e.name === 'TypeError' || String(e.message||'').toLowerCase().includes('network'))) {
-                                window.offlineQueue && window.offlineQueue.enqueue('POST', `/events/${eventId}/regenerate-banner`, {}, { auth: true });
-                                window.app?.showToast('Sem conexão. Solicitação enfileirada.', 'warning');
-                            } else {
-                                window.app?.showToast('Não foi possível solicitar regeneração: ' + (e?.message || 'erro'), 'error');
-                            }
-                        }
-                    })();
-                    break;
+                
             }
         }
 
@@ -1329,13 +1244,7 @@
             return lines.join('\n');
         }
 
-        async function fetchBannerBlob(url){
-            try {
-                const res = await fetch(url, { mode: 'cors' });
-                if (!res.ok) return null;
-                return await res.blob();
-            } catch (_) { return null; }
-        }
+        // Removido: fetchBannerBlob (automação de banners desativada)
 
         async function ensureEventExistsOnServer(eventId){
             try {
@@ -1603,13 +1512,6 @@
                     });
                     window.evSocket.on('event:updated', async ({ event }) => {
                         await syncEventsFromBackend();
-                        // Se banner foi atualizado, limpar flag local e mostrar toast
-                        const ev = EventflowData.events.find(e => String(e.id) === String(event.id || event._id));
-                        if (ev && event.bannerUrl) {
-                            ev.bannerGenerating = false;
-                            try { saveToLocalStorage && saveToLocalStorage(); } catch(_) {}
-                            window.app?.showToast('Banner atualizado!', 'success');
-                        }
                         loadEvents();
                     });
                     window.evSocket.on('event:deleted', async ({ id }) => {
@@ -1687,20 +1589,7 @@
                 });
             }
 
-            // Helper de teste: simula recebimento de event:updated com bannerUrl
-            // Uso no console: window.testBannerUpdate('<eventId>', 'https://canva.com/arquivo.png')
-            try {
-                window.testBannerUpdate = function(eventId, bannerUrl){
-                    const ev = (window.EventflowData && window.EventflowData.events || []).find(e => String(e.id) === String(eventId));
-                    if (!ev) { console.warn('Evento não encontrado para teste', eventId); return; }
-                    ev.bannerUrl = bannerUrl || ev.bannerUrl || null;
-                    ev.bannerGenerating = false;
-                    try { window.saveToLocalStorage && window.saveToLocalStorage(); } catch(_) {}
-                    if (window.app && typeof window.app.showToast === 'function') { window.app.showToast('Banner atualizado (teste).', 'success'); }
-                    // Re-renderiza para exibir botão "Abrir banner"
-                    try { loadEvents(); } catch(_) {}
-                };
-            } catch(_) {}
+            // Removido: helpers de teste relacionados a bannerUrl e automação
         });
     </script>
 </body>

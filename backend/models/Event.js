@@ -22,7 +22,6 @@ if (useMemory) {
       this.capacity = obj.capacity ?? 50;
       this.organizer = obj.organizer || '';
       this.color = obj.color || '#1976d2';
-      this.bannerUrl = obj.bannerUrl || '';
       this.attendees = Array.isArray(obj.attendees) ? obj.attendees : [];
       this.createdBy = obj.createdBy;
       this.createdAt = obj.createdAt || new Date();
@@ -96,7 +95,6 @@ const eventSchema = new mongoose.Schema({
   capacity: { type: Number, default: 50 },
   organizer: { type: String, trim: true },
   color: { type: String, trim: true, default: '#1976d2' },
-  bannerUrl: { type: String, trim: true, default: '' },
   attendees: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   createdAt: { type: Date, default: Date.now },
