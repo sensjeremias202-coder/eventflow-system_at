@@ -1836,8 +1836,9 @@
         // Mostrar detalhes do evento
         function showEventDetails(eventId) {
             if (!eventId) return;
-            // Navegar para página dedicada de detalhes
-            window.location.href = `event-details.html?id=${eventId}`;
+            const inPages = /\/pages\//.test(location.pathname);
+            const target = inPages ? 'event-details.html' : 'pages/event-details.html';
+            window.location.href = `${target}?id=${encodeURIComponent(eventId)}`;
         }
 
         // Editar evento
