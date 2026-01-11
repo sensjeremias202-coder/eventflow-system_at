@@ -889,6 +889,7 @@
                                 <button class="action-btn" title="Excluir" data-action="delete">
                                     <i class="fas fa-trash"></i>
                                 </button>
+                                ${event.unsynced ? `<button class="action-btn" title="Recriar no servidor" data-action="recreate-server"><i class="fas fa-cloud-upload-alt"></i></button>` : ''}
                                 ${event.bannerUrl ? `<button class=\"action-btn\" title=\"Abrir banner\" data-action=\"open-banner\"><i class=\"fas fa-external-link-alt\"></i></button>` : ''}
                                 <button class="action-btn" title="Regerar banner" data-action="regen-banner">
                                     <i class="fas fa-sync"></i>
@@ -1026,6 +1027,7 @@
                                 <button class="action-btn" title="Editar" data-action="edit">
                                     <i class="fas fa-edit"></i>
                                 </button>
+                                    ${event.unsynced ? `<button class=\"action-btn\" title=\"Recriar no servidor\" data-action=\"recreate-server\"><i class=\"fas fa-cloud-upload-alt\"></i></button>` : ''}
                                     ${event.bannerUrl ? `<button class=\"action-btn\" title=\"Abrir banner\" data-action=\"open-banner\"><i class=\"fas fa-external-link-alt\"></i></button>` : ''}
                                 <button class="action-btn" title="Regerar banner" data-action="regen-banner">
                                     <i class="fas fa-sync"></i>
@@ -1150,6 +1152,15 @@
                 case 'open-banner':
                     if (event.bannerUrl) { window.open(event.bannerUrl, '_blank'); }
                     else { window.app?.showToast('Este evento ainda não possui banner gerado.', 'info'); }
+                    break;
+                case 'recreate-server':
+                    (async () => {
+                        const ok = await recreateOnServer(eventId);
+                        if (!ok) return;
+                        // Após recriar, opcionalmente solicitar regeneração do banner
+                        window.app?.showToast('Evento recriado no servidor.', 'success');
+                        loadEvents();
+                    })();
                     break;
                 case 'share-png':
                     (async () => {
