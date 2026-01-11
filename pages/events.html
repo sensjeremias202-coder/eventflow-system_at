@@ -1221,7 +1221,12 @@
                         try {
                             const res = await api.post(`/events/${eventId}/regenerate-banner`, {}, { auth: true });
                             if (!res.ok) { const body = await res.json().catch(()=>({})); throw new Error(body.error || 'Falha ao solicitar regeneração'); }
-                            window.app?.showToast('Solicitado: o banner será regenerado.', 'success');
+                            window.app?.showToast('Gerando banner…', 'info');
+                            try {
+                                const evLocal = EventflowData.events.find(e => String(e.id) === String(eventId));
+                                if (evLocal) { evLocal.bannerGenerating = true; saveToLocalStorage && saveToLocalStorage(); }
+                            } catch(_){}
+                            loadEvents();
                         } catch(e) {
                             window.offlineQueue && window.offlineQueue.enqueue('POST', `/events/${eventId}/regenerate-banner`, {}, { auth: true });
                             window.app?.showToast('Sem conexão. Solicitação enfileirada.', 'warning');
@@ -1548,6 +1553,13 @@
                     });
                     window.evSocket.on('event:updated', async ({ event }) => {
                         await syncEventsFromBackend();
+                        // Se banner foi atualizado, limpar flag local e mostrar toast
+                        const ev = EventflowData.events.find(e => String(e.id) === String(event.id || event._id));
+                        if (ev && event.bannerUrl) {
+                            ev.bannerGenerating = false;
+                            try { saveToLocalStorage && saveToLocalStorage(); } catch(_) {}
+                            window.app?.showToast('Banner atualizado!', 'success');
+                        }
                         loadEvents();
                     });
                     window.evSocket.on('event:deleted', async ({ id }) => {

@@ -294,6 +294,9 @@
             const id = String(ev._id || ev.id);
             const res = await api.post(`/events/${id}/regenerate-banner`, {}, { auth: true });
             if (!res.ok) { const body = await res.json().catch(()=>({})); throw new Error(body.error || 'Falha ao solicitar regeneração'); }
+            setBanner('syncing', 'Gerando banner…');
+            try { regenBannerBtn.disabled = true; } catch(_){}
+            window.currentEventDetail.bannerGenerating = true;
             alert('Solicitado: o banner será regenerado. Aguarde o retorno da automação.');
           } catch(e) {
             if (window.offlineQueue) {
@@ -419,8 +422,14 @@
         window.evDetailSocket.on('event:updated', ({ event }) => {
           if (String(event.id || event._id) === String(eventId)) {
             renderEvent(event);
-            setBanner('syncing', 'Evento atualizado em outro dispositivo.');
+            if (event.bannerUrl) {
+              setBanner('syncing', 'Banner atualizado.');
+              setTimeout(() => { syncBanner.style.display = 'none'; }, 1500);
+            } else {
+              setBanner('syncing', 'Evento atualizado em outro dispositivo.');
+            }
             localBadge.style.display = 'none';
+            try { regenBannerBtn.disabled = false; } catch(_){}
           }
         });
         window.evDetailSocket.on('event:deleted', ({ id }) => {
