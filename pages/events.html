@@ -1032,13 +1032,19 @@
                                 return;
                             }
                             return api.del(`/events/${eventId}`, { auth: true })
-                          .then(async res => {
-                              if (!res.ok) throw new Error('Falha ao excluir');
-                              await syncEventsFromBackend();
-                              loadEvents();
-                              window.app?.showToast('Evento excluído com sucesso!', 'success');
-                          })
-                          .catch(() => window.app?.showToast('Erro ao excluir evento', 'error'));
+                           .then(async res => {
+                                if (!res.ok) throw new Error('Falha ao excluir');
+                                await syncEventsFromBackend();
+                                loadEvents();
+                                window.app?.showToast('Evento excluído com sucesso!', 'success');
+                            })
+                            .catch(() => {
+                                window.offlineQueue && window.offlineQueue.enqueue('DELETE', `/events/${eventId}`, null, { auth: true });
+                                EventflowData.events = EventflowData.events.filter(e => String(e.id) !== String(eventId));
+                                try { saveToLocalStorage && saveToLocalStorage(); } catch(_) {}
+                                loadEvents();
+                                window.app?.showToast('Exclusão pendente (offline). Removido localmente.', 'warning');
+                            })
                         });
                     }
                     break;
@@ -1211,27 +1217,47 @@
                 color: '#1976d2'
             };
 
-            if (eventId) {
-                                api.put(`/events/${eventId}`, eventData, { auth: true })
-                  .then(async res => {
-                                        const body = await res.json().catch(() => ({}));
-                                        if (!res.ok) throw new Error((body.error || res.statusText || 'Falha ao atualizar evento') + ` (HTTP ${res.status})`);
-                    await syncEventsFromBackend();
-                    window.app?.showToast('Evento atualizado com sucesso!', 'success');
-                    loadEvents();
-                  })
-                  .catch(err => window.app?.showToast(err.message, 'error'));
-            } else {
-                                api.post('/events', eventData, { auth: true })
-                  .then(async res => {
-                                        const body = await res.json().catch(() => ({}));
-                                        if (!res.ok) throw new Error((body.error || res.statusText || 'Falha ao criar evento') + ` (HTTP ${res.status})`);
-                    await syncEventsFromBackend();
-                    window.app?.showToast('Evento criado com sucesso!', 'success');
-                    loadEvents();
-                  })
-                  .catch(err => window.app?.showToast(err.message, 'error'));
-            }
+                        if (eventId) {
+                                                                api.put(`/events/${eventId}`, eventData, { auth: true })
+                                    .then(async res => {
+                                                                                const body = await res.json().catch(() => ({}));
+                                                                                if (!res.ok) throw new Error((body.error || res.statusText || 'Falha ao atualizar evento') + ` (HTTP ${res.status})`);
+                                        await syncEventsFromBackend();
+                                        window.app?.showToast('Evento atualizado com sucesso!', 'success');
+                                        loadEvents();
+                                    })
+                                    .catch(err => {
+                                        const ev = EventflowData.events.find(e => String(e.id) === String(eventId));
+                                        if (ev) {
+                                            Object.assign(ev, eventData);
+                                            ev.unsynced = true;
+                                            try { saveToLocalStorage && saveToLocalStorage(); } catch(_) {}
+                                            window.offlineQueue && window.offlineQueue.enqueue('PUT', `/events/${eventId}`, eventData, { auth: true });
+                                            window.app?.showToast('Atualização pendente (offline). Será sincronizada ao voltar a conexão.', 'warning');
+                                            loadEvents();
+                                        } else {
+                                            window.app?.showToast(err.message, 'error');
+                                        }
+                                    });
+                        } else {
+                                                                api.post('/events', eventData, { auth: true })
+                                    .then(async res => {
+                                                                                const body = await res.json().catch(() => ({}));
+                                                                                if (!res.ok) throw new Error((body.error || res.statusText || 'Falha ao criar evento') + ` (HTTP ${res.status})`);
+                                        await syncEventsFromBackend();
+                                        window.app?.showToast('Evento criado com sucesso!', 'success');
+                                        loadEvents();
+                                    })
+                                    .catch(err => {
+                                        const localId = `local-${Date.now()}`;
+                                        const newEv = { id: localId, ...eventData, registered: 0, attendees: [], unsynced: true };
+                                        EventflowData.events = (EventflowData.events || []).concat([newEv]);
+                                        try { saveToLocalStorage && saveToLocalStorage(); } catch(_) {}
+                                        window.offlineQueue && window.offlineQueue.enqueue('POST', '/events', eventData, { auth: true });
+                                        window.app?.showToast('Evento criado localmente (offline). Será sincronizado ao voltar a conexão.', 'warning');
+                                        loadEvents();
+                                    });
+                        }
 
             // Fechar modal
             document.getElementById('createEventModal').classList.remove('active');

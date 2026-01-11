@@ -96,3 +96,60 @@
     });
   } catch(_) {}
 })();
+
+// Registro de Service Worker e fila offline simples para eventos
+(function(){
+  try {
+    // Registra Service Worker com caminho relativo ao projeto
+    if ('serviceWorker' in navigator) {
+      var parts = String(location.pathname || '').split('/').filter(Boolean);
+      var projectRoot = parts.length > 0 ? ('/' + parts[0]) : '';
+      var swPath = (projectRoot || '') + '/sw.js';
+      navigator.serviceWorker.register(swPath).then(function(reg){
+        console.log('[SW] registrado:', swPath);
+      }).catch(function(err){ console.warn('[SW] falha ao registrar', err); });
+    }
+
+    // Fila offline básica para mutações de eventos
+    var QUEUE_KEY = 'eventflow_offline_queue';
+    function readQueue(){ try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch(_) { return []; } }
+    function writeQueue(q){ try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch(_) {} }
+
+    async function flushQueue(){
+      var q = readQueue();
+      if (!Array.isArray(q) || q.length === 0) return;
+      var next = [];
+      for (var i=0;i<q.length;i++){
+        var item = q[i];
+        try {
+          var opts = { method: item.method, headers: { 'Content-Type': 'application/json' } };
+          if (item.auth && window.api && window.api.token.get()) {
+            opts.headers['Authorization'] = 'Bearer ' + window.api.token.get();
+          }
+          if (item.body) opts.body = JSON.stringify(item.body);
+          var res = await fetch((window.api ? (window.api.url + '/api' + item.path) : (window.API_BASE_URL.replace(/\/$/,'') + '/api' + item.path)), opts);
+          if (!res.ok) throw new Error('Falha ao enviar '+item.method+' '+item.path+' (HTTP '+res.status+')');
+          // Atualiza eventos locais após sucesso
+          try { typeof syncEventsFromBackend === 'function' && await syncEventsFromBackend(); } catch(_) {}
+        } catch (e) {
+          console.warn('[offlineQueue] manter item na fila', item.path, e && e.message);
+          next.push(item);
+        }
+      }
+      writeQueue(next);
+    }
+
+    window.offlineQueue = {
+      enqueue: function(method, path, body, { auth = true } = {}){
+        var q = readQueue();
+        q.push({ method: method, path: path, body: body || null, auth: !!auth, at: Date.now() });
+        writeQueue(q);
+        console.log('[offlineQueue] enfileirado', method, path);
+      },
+      flush: flushQueue
+    };
+
+    window.addEventListener('online', function(){ flushQueue(); });
+    document.addEventListener('DOMContentLoaded', function(){ flushQueue(); });
+  } catch(_) {}
+})();
