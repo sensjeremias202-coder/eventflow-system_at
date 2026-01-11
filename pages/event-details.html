@@ -588,32 +588,46 @@
       ctx.font = `700 ${Math.round(brandBarH*0.6)}px Inter, Arial, sans-serif`;
       ctx.fillText('Eventflow', 24, Math.round(brandBarH*0.75));
 
+      // Centraliza textos e adiciona descrição
+      ctx.textAlign = 'center';
+      const centerX = Math.round(W / 2);
+
       // Título principal (auto tamanho)
-      const titleMaxWidth = W - 80;
-      let tSize = Math.round(H * (format==='story' ? 0.06 : format==='square' ? 0.08 : 0.09));
+      const titleMaxWidth = W - 120;
+      let tSize = Math.round(H * (format==='story' ? 0.065 : format==='square' ? 0.085 : 0.095));
       ctx.fillStyle = pal.title;
       ctx.font = `700 ${tSize}px Inter, Arial, sans-serif`;
-      const lines = wrapText(ctx, String(title).toUpperCase(), titleMaxWidth);
-      let y = Math.round(H * 0.22);
-      lines.slice(0,3).forEach(line => { ctx.fillText(line, 40, y); y += tSize + Math.round(tSize*0.15); });
+      const titleLines = wrapText(ctx, String(title).toUpperCase(), titleMaxWidth);
+      let y = Math.round(H * 0.28);
+      titleLines.slice(0,3).forEach(line => { ctx.fillText(line, centerX, y); y += tSize + Math.round(tSize*0.15); });
+
+      // Descrição do evento (menor, centralizada)
+      const desc = (ev && ev.description) || document.getElementById('eventDescription')?.textContent || '';
+      if (desc) {
+        const descSize = Math.round(tSize * 0.50);
+        ctx.fillStyle = pal.sub;
+        ctx.font = `500 ${descSize}px Inter, Arial, sans-serif`;
+        const descLines = wrapText(ctx, String(desc), titleMaxWidth);
+        descLines.slice(0,2).forEach(line => { ctx.fillText(line, centerX, y); y += descSize + Math.round(descSize*0.2); });
+      }
 
       // Subinfo (data/hora)
       const subSize = Math.round(tSize * 0.55);
       ctx.fillStyle = accent || pal.sub;
       ctx.font = `600 ${subSize}px Inter, Arial, sans-serif`;
       const dtLine = (dateText && timeText) ? `${dateText} • ${timeText}` : (dateText || timeText || '');
-      if (dtLine) { ctx.fillText(dtLine, 40, y + Math.round(subSize*0.2)); }
+      if (dtLine) { ctx.fillText(dtLine, centerX, y + Math.round(subSize*0.2)); y += subSize + Math.round(subSize*0.6); }
 
       // Local
       ctx.fillStyle = pal.sub;
       ctx.font = `500 ${Math.round(subSize*0.9)}px Inter, Arial, sans-serif`;
       const locLine = locText ? `Local: ${locText}` : '';
-      if (locLine) ctx.fillText(locLine, 40, y + Math.round(subSize*1.5));
+      if (locLine) { ctx.fillText(locLine, centerX, y); y += Math.round(subSize*1.2); }
 
       // Rodapé
       ctx.fillStyle = '#9ca3af';
       ctx.font = `400 ${Math.round(H*0.025)}px Inter, Arial, sans-serif`;
-      ctx.fillText('Crie, compartilhe e participe de eventos.', 40, H - Math.round(H*0.03));
+      ctx.fillText('Crie, compartilhe e participe de eventos.', centerX, H - Math.round(H*0.03));
 
       return canvas;
     }
