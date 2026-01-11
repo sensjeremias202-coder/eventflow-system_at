@@ -35,6 +35,11 @@
     .banner-preview { margin-top: 12px; display:none; }
     .banner-preview img { width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     .banner-actions { margin-top: 8px; display:flex; gap:8px; }
+    .banner-config { margin-top: 8px; display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+    .banner-config input[type="url"] { flex: 1; min-width: 240px; padding:6px 8px; border:1px solid #e5e7eb; border-radius:8px; }
+    .banner-config input[type="file"] { padding:6px 0; }
+    .banner-config { margin-top: 8px; display:flex; gap:8px; align-items:center; }
+    .banner-config input { flex: 1; padding:6px 8px; border:1px solid #e5e7eb; border-radius:8px; }
   </style>
 </head>
 <body>
@@ -73,7 +78,15 @@
       </div>
       <div>
         <p id="eventDescription">—</p>
-        
+        <div id="bannerPreview" class="banner-preview">
+          <img id="bannerImg" alt="Banner do Evento" />
+          <div class="banner-config">
+            <input id="customBannerInput" type="url" placeholder="Ex.: ../images/banner.jpeg ou https://exemplo.com/banner.jpg" />
+            <button id="saveCustomBannerBtn">Salvar Banner</button>
+            <input id="customBannerFile" type="file" accept="image/*" />
+            <button id="clearCustomBannerBtn">Remover Banner</button>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -171,7 +184,12 @@
 
         // guarda referência para gerar banner
         window.currentEventDetail = ev;
-        // Preview de banner removido (somente Canvas local)
+        // Preview de banner personalizado
+        const bp = document.getElementById('bannerPreview');
+        const bi = document.getElementById('bannerImg');
+        const customUrl = getCustomBannerUrl(eventId);
+        if (customUrl) { bi.src = customUrl; bp.style.display = 'block'; }
+        else { bp.style.display = 'none'; }
       }
 
       async function ensureServerEvent(ev){
@@ -265,6 +283,26 @@
         }
       }
 
+      function getCustomBanners(){
+        try { return JSON.parse(localStorage.getItem('customBanners') || '{}'); } catch(_) { return {}; }
+      }
+      function setCustomBannerUrl(id, url){
+        const map = getCustomBanners();
+        if (url) map[id] = url; else delete map[id];
+        localStorage.setItem('customBanners', JSON.stringify(map));
+      }
+      function getCustomBannerUrl(id){
+        const map = getCustomBanners();
+        return map[id] || '';
+      }
+      async function fetchImageBlob(url){
+        try {
+          const res = await fetch(url, { mode: 'cors' });
+          if (!res.ok) return null;
+          return await res.blob();
+        } catch(_) { return null; }
+      }
+
       function initActions(){
         const editBtn = document.getElementById('editBtn');
         const deleteBtn = document.getElementById('deleteBtn');
@@ -272,6 +310,10 @@
         const downloadPNGBtn = document.getElementById('downloadPNGBtn');
         const savePDFBtn = document.getElementById('savePDFBtn');
         const shareWABtn = document.getElementById('shareWABtn');
+        const customBannerInput = document.getElementById('customBannerInput');
+        const saveCustomBannerBtn = document.getElementById('saveCustomBannerBtn');
+        const customBannerFile = document.getElementById('customBannerFile');
+        const clearCustomBannerBtn = document.getElementById('clearCustomBannerBtn');
         // Removido: ação de regenerar banner (automação desativada)
 
         editBtn.addEventListener('click', () => {
@@ -290,6 +332,21 @@
         downloadPNGBtn.addEventListener('click', async () => {
           try {
             const ev = window.currentEventDetail || {};
+            const customUrl = getCustomBannerUrl(eventId);
+            if (customUrl) {
+              const blob = await fetchImageBlob(customUrl);
+              if (blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const ext = (blob.type.includes('jpeg') || blob.type.includes('jpg')) ? 'jpg' : (blob.type.includes('png') ? 'png' : 'img');
+                const title = (ev.title || 'evento');
+                a.download = `banner-${title.replace(/\s+/g,'-').toLowerCase()}.${ext}`;
+                document.body.appendChild(a); a.click();
+                setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
+                return;
+              }
+            }
             const canvas = await createEventBannerCanvas(ev);
             canvas.toBlob((blob) => {
               if (!blob) return;
@@ -307,40 +364,101 @@
         savePDFBtn.addEventListener('click', async () => {
           try {
             const ev = window.currentEventDetail || {};
-            const dataUrl = (await createEventBannerCanvas(ev)).toDataURL('image/png');
+            const customUrl = getCustomBannerUrl(eventId);
+            let dataUrl = '';
+            let naturalW = 0, naturalH = 0;
+            if (customUrl) {
+              const blob = await fetchImageBlob(customUrl);
+              if (blob) {
+                const url = URL.createObjectURL(blob);
+                const img = new Image();
+                const dims = await new Promise((resolve) => { img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight }); img.src = url; });
+                naturalW = dims.w; naturalH = dims.h;
+                dataUrl = await new Promise((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.readAsDataURL(blob); });
+                URL.revokeObjectURL(url);
+              }
+            }
+            if (!dataUrl) {
+              const canvas = await createEventBannerCanvas(ev);
+              naturalW = canvas.width; naturalH = canvas.height;
+              dataUrl = canvas.toDataURL('image/png');
+            }
+            const mmW = Math.round(naturalW * 25.4 / 96);
+            const mmH = Math.round(naturalH * 25.4 / 96);
             const w = window.open('', '_blank');
             if (!w) { alert('Permita pop-ups para salvar o PDF'); return; }
             const html = `<!doctype html><html><head><meta charset="utf-8">
               <title>Banner do Evento</title>
-              <style>@page{size:A4;margin:12mm} img{width:100%; height:auto} body{margin:0; padding:12mm;}</style>
+              <style>@page{size:${mmW}mm ${mmH}mm;margin:0} img{width:100%; height:auto} body{margin:0;}</style>
             </head><body><img src="${dataUrl}" alt="Banner do Evento" /></body></html>`;
             w.document.open(); w.document.write(html); w.document.close();
-            // aguarda carregar a imagem antes de imprimir
-            const img = w.document.querySelector('img');
-            img.onload = () => { try { w.focus(); w.print(); } catch(_){} };
+            const imgEl = w.document.querySelector('img');
+            imgEl.onload = () => { try { w.focus(); w.print(); } catch(_){} };
           } catch (e) { alert('Falha ao preparar PDF'); }
         });
 
         shareWABtn.addEventListener('click', async () => {
           try {
             const ev = window.currentEventDetail || {};
-            const canvas = await createEventBannerCanvas(ev);
-            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-            const file = blob ? new File([blob], 'banner-evento.png', { type: 'image/png' }) : null;
+            const customUrl = getCustomBannerUrl(eventId);
+            let blob = null;
+            if (customUrl) { blob = await fetchImageBlob(customUrl); }
+            if (!blob) {
+              const canvas = await createEventBannerCanvas(ev);
+              blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+            }
+            const ext = (blob && (blob.type.includes('jpeg') || blob.type.includes('jpg'))) ? 'jpg' : 'png';
+            const file = blob ? new File([blob], `banner-evento.${ext}`, { type: blob.type || 'image/png' }) : null;
             const shareText = buildWhatsAppText(ev);
-            // Web Share API com arquivo (Android/iOS suportado)
             if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
               await navigator.share({ files: [file], text: shareText, title: ev.title || 'Evento' });
             } else {
-              // Fallback: abre WhatsApp com texto e link
               const waUrl = 'https://wa.me/?text=' + encodeURIComponent(shareText);
               window.open(waUrl, '_blank');
-              alert('O banner PNG foi gerado. Baixe-o e anexe manualmente no WhatsApp.');
+              alert('Baixe o banner e anexe manualmente no WhatsApp.');
             }
           } catch (e) {
             alert('Não foi possível compartilhar no WhatsApp. Tente baixar o PNG e anexar manualmente.');
           }
         });
+
+        // Salvar banner personalizado
+        if (customBannerInput && saveCustomBannerBtn) {
+          customBannerInput.value = getCustomBannerUrl(eventId) || '';
+          saveCustomBannerBtn.addEventListener('click', () => {
+            const url = (customBannerInput.value || '').trim();
+            setCustomBannerUrl(eventId, url);
+            window.app?.showToast('Banner definido para este evento.', 'success');
+            renderEvent(window.currentEventDetail || {});
+          });
+        }
+
+        // Upload de arquivo de imagem local → salva como data URL
+        if (customBannerFile) {
+          customBannerFile.addEventListener('change', () => {
+            const file = customBannerFile.files && customBannerFile.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+              const dataUrl = reader.result;
+              setCustomBannerUrl(eventId, dataUrl);
+              window.app?.showToast('Banner carregado do arquivo e definido.', 'success');
+              renderEvent(window.currentEventDetail || {});
+              try { customBannerInput.value = dataUrl; } catch(_){}
+            };
+            reader.readAsDataURL(file);
+          });
+        }
+
+        // Remover banner
+        if (clearCustomBannerBtn) {
+          clearCustomBannerBtn.addEventListener('click', () => {
+            setCustomBannerUrl(eventId, '');
+            window.app?.showToast('Banner removido deste evento.', 'info');
+            renderEvent(window.currentEventDetail || {});
+            try { customBannerInput.value = ''; } catch(_){}
+          });
+        }
       }
 
       if (window.offlineQueue && window.offlineQueue.onChange){
@@ -376,6 +494,23 @@
         });
       } catch (_) {}
     })();
+
+    // Helper: definir banner personalizado rapidamente via console
+    // Uso: setCustomBannerForTest('https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Fronalpstock_big.jpg/1024px-Fronalpstock_big.jpg')
+    function setCustomBannerForTest(url){
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const eventId = params.get('id');
+        if (!eventId) { console.warn('Sem id do evento na URL'); return; }
+        const map = JSON.parse(localStorage.getItem('customBanners') || '{}');
+        if (url) map[eventId] = String(url); else delete map[eventId];
+        localStorage.setItem('customBanners', JSON.stringify(map));
+        window.app?.showToast && window.app.showToast('Banner de teste definido.', 'success');
+        const bp = document.getElementById('bannerPreview');
+        const bi = document.getElementById('bannerImg');
+        if (bi && bp) { bi.src = String(url); bp.style.display = url ? 'block' : 'none'; }
+      } catch(e){ console.error('Falha ao definir banner de teste', e); }
+    }
 
     // Geração de banner (PNG) via Canvas
     async function createEventBannerCanvas(ev){

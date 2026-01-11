@@ -1151,6 +1151,20 @@
                 case 'share-png':
                     (async () => {
                         try {
+                            const customUrl = getCustomBannerUrl(event.id);
+                            if (customUrl) {
+                                const blob = await fetchImageBlob(customUrl);
+                                if (blob) {
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    const ext = (blob.type.includes('jpeg') || blob.type.includes('jpg')) ? 'jpg' : (blob.type.includes('png') ? 'png' : 'img');
+                                    a.download = `banner-${String(event.title||'evento').replace(/\s+/g,'-').toLowerCase()}.${ext}`;
+                                    document.body.appendChild(a); a.click();
+                                    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
+                                    return;
+                                }
+                            }
                             const canvas = await createEventBannerCanvas(event);
                             canvas.toBlob((blob2) => {
                                 if (!blob2) return;
@@ -1167,12 +1181,32 @@
                 case 'share-pdf':
                     (async () => {
                         try {
-                            const dataUrl = (await createEventBannerCanvas(event)).toDataURL('image/png');
+                            const customUrl = getCustomBannerUrl(event.id);
+                            let dataUrl = '';
+                            let naturalW = 0, naturalH = 0;
+                            if (customUrl) {
+                                const blob = await fetchImageBlob(customUrl);
+                                if (blob) {
+                                    const tempUrl = URL.createObjectURL(blob);
+                                    const img = new Image();
+                                    const dims = await new Promise((resolve) => { img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight }); img.src = tempUrl; });
+                                    naturalW = dims.w; naturalH = dims.h;
+                                    dataUrl = await new Promise((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.readAsDataURL(blob); });
+                                    URL.revokeObjectURL(tempUrl);
+                                }
+                            }
+                            if (!dataUrl) {
+                                const canvas = await createEventBannerCanvas(event);
+                                naturalW = canvas.width; naturalH = canvas.height;
+                                dataUrl = canvas.toDataURL('image/png');
+                            }
+                            const mmW = Math.round(naturalW * 25.4 / 96);
+                            const mmH = Math.round(naturalH * 25.4 / 96);
                             const w = window.open('', '_blank');
                             if (!w) { alert('Permita pop-ups para salvar o PDF'); return; }
                             const html = `<!doctype html><html><head><meta charset="utf-8">
                               <title>Banner do Evento</title>
-                              <style>@page{size:A4;margin:12mm} img{width:100%; height:auto} body{margin:0; padding:12mm;}</style>
+                              <style>@page{size:${mmW}mm ${mmH}mm;margin:0} img{width:100%; height:auto} body{margin:0;}</style>
                             </head><body><img src="${dataUrl}" alt="Banner do Evento" /></body></html>`;
                             w.document.open(); w.document.write(html); w.document.close();
                             const img = w.document.querySelector('img');
@@ -1183,16 +1217,22 @@
                 case 'share-wa':
                     (async () => {
                         try {
-                            const canvas = await createEventBannerCanvas(event);
-                            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-                            const file = blob ? new File([blob], 'banner-evento.png', { type: 'image/png' }) : null;
+                            const customUrl = getCustomBannerUrl(event.id);
+                            let blob = null;
+                            if (customUrl) { blob = await fetchImageBlob(customUrl); }
+                            if (!blob) {
+                                const canvas = await createEventBannerCanvas(event);
+                                blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+                            }
+                            const ext = (blob && (blob.type.includes('jpeg') || blob.type.includes('jpg'))) ? 'jpg' : 'png';
+                            const file = blob ? new File([blob], `banner-evento.${ext}`, { type: blob.type || 'image/png' }) : null;
                             const text = buildWhatsAppText(event);
                             if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
                                 await navigator.share({ files: [file], text, title: event.title || 'Evento' });
                             } else {
                                 const waUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
                                 window.open(waUrl, '_blank');
-                                window.app?.showToast('Baixe o PNG e anexe manualmente no WhatsApp (se necessário).', 'info');
+                                window.app?.showToast('Baixe o banner e anexe manualmente no WhatsApp (se necessário).', 'info');
                             }
                         } catch (e) { window.app?.showToast('Não foi possível compartilhar no WhatsApp', 'error'); }
                     })();
@@ -1261,6 +1301,17 @@
                 if (ev) { ev.unsynced = false; try { saveToLocalStorage && saveToLocalStorage(); } catch(_) {} }
                 return true;
             } catch (e) { return false; }
+        }
+
+        function getCustomBanners(){
+            try { return JSON.parse(localStorage.getItem('customBanners') || '{}'); } catch(_) { return {}; }
+        }
+        function getCustomBannerUrl(id){
+            const map = getCustomBanners();
+            return map[id] || '';
+        }
+        async function fetchImageBlob(url){
+            try { const res = await fetch(url, { mode: 'cors' }); if (!res.ok) return null; return await res.blob(); } catch(_) { return null; }
         }
 
         async function recreateOnServer(eventId){
