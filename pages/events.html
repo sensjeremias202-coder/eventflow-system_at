@@ -1004,12 +1004,25 @@
                     break;
                     
                 case 'edit':
-                    editEvent(eventId);
+                    ensureEventExistsOnServer(eventId).then(exists => {
+                        if (!exists) {
+                            window.app?.showToast('Evento não encontrado no servidor. Re-sincronizando...', 'warning');
+                            (async ()=>{ await syncEventsFromBackend(); loadEvents(); })();
+                            return;
+                        }
+                        editEvent(eventId);
+                    });
                     break;
                     
                 case 'delete':
                     if (confirm(`Tem certeza que deseja excluir o evento "${event.title}"?`)) {
-                        api.del(`/events/${eventId}`, { auth: true })
+                        ensureEventExistsOnServer(eventId).then(exists => {
+                            if (!exists) {
+                                window.app?.showToast('Evento não existe no servidor. Re-sincronizando...', 'error');
+                                (async ()=>{ await syncEventsFromBackend(); loadEvents(); })();
+                                return;
+                            }
+                            return api.del(`/events/${eventId}`, { auth: true })
                           .then(async res => {
                               if (!res.ok) throw new Error('Falha ao excluir');
                               await syncEventsFromBackend();
@@ -1017,13 +1030,30 @@
                               window.app?.showToast('Evento excluído com sucesso!', 'success');
                           })
                           .catch(() => window.app?.showToast('Erro ao excluir evento', 'error'));
+                        });
                     }
                     break;
                     
                 case 'register':
-                    registerForEvent(eventId);
+                    ensureEventExistsOnServer(eventId).then(exists => {
+                        if (!exists) {
+                            window.app?.showToast('Evento não encontrado no servidor. Re-sincronizando...', 'warning');
+                            (async ()=>{ await syncEventsFromBackend(); loadEvents(); })();
+                            return;
+                        }
+                        registerForEvent(eventId);
+                    });
                     break;
             }
+        }
+
+        async function ensureEventExistsOnServer(eventId){
+            try {
+                const res = await api.get(`/events/${eventId}`, { auth: true });
+                if (!res.ok) return false;
+                await res.json().catch(()=>({}));
+                return true;
+            } catch (e) { return false; }
         }
 
         // Mostrar detalhes do evento
