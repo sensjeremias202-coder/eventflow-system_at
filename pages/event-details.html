@@ -32,6 +32,9 @@
     .sync-banner.offline { display:block; background:#f8d7da; color:#842029; border:1px solid #f5c2c7; }
     .sync-banner.syncing { display:block; background:#cff4fc; color:#055160; border:1px solid #b6effb; }
     .clock { font-variant-numeric: tabular-nums; color:#374151; }
+    .banner-preview { margin-top: 12px; display:none; }
+    .banner-preview img { width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .banner-actions { margin-top: 8px; display:flex; gap:8px; }
   </style>
 </head>
 <body>
@@ -69,6 +72,12 @@
       </div>
       <div>
         <p id="eventDescription">—</p>
+        <div id="bannerPreview" class="banner-preview">
+          <img id="bannerImg" alt="Banner do Evento" />
+          <div class="banner-actions">
+            <a id="openBannerLink" class="back-link" href="#" target="_blank">Abrir banner ↗</a>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -166,6 +175,17 @@
 
         // guarda referência para gerar banner
         window.currentEventDetail = ev;
+        // preview do banner
+        const bp = document.getElementById('bannerPreview');
+        const bi = document.getElementById('bannerImg');
+        const bl = document.getElementById('openBannerLink');
+        if (ev.bannerUrl) {
+          bi.src = ev.bannerUrl;
+          bl.href = ev.bannerUrl;
+          bp.style.display = 'block';
+        } else {
+          bp.style.display = 'none';
+        }
       }
 
       async function ensureServerEvent(ev){
@@ -282,13 +302,27 @@
 
         downloadPNGBtn.addEventListener('click', async () => {
           try {
-            const canvas = await createEventBannerCanvas(window.currentEventDetail);
+            const ev = window.currentEventDetail || {};
+            if (ev.bannerUrl) {
+              const blob = await fetchBannerBlob(ev.bannerUrl);
+              if (blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const title = (ev.title || 'evento');
+                a.download = `banner-${title.replace(/\s+/g,'-').toLowerCase()}.png`;
+                document.body.appendChild(a); a.click();
+                setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
+                return;
+              }
+            }
+            const canvas = await createEventBannerCanvas(ev);
             canvas.toBlob((blob) => {
               if (!blob) return;
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              const title = (window.currentEventDetail && window.currentEventDetail.title) || 'evento';
+              const title = (ev && ev.title) || 'evento';
               a.download = `banner-${title.replace(/\s+/g,'-').toLowerCase()}.png`;
               document.body.appendChild(a); a.click();
               setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
@@ -298,8 +332,8 @@
 
         savePDFBtn.addEventListener('click', async () => {
           try {
-            const canvas = await createEventBannerCanvas(window.currentEventDetail);
-            const dataUrl = canvas.toDataURL('image/png');
+            const ev = window.currentEventDetail || {};
+            const dataUrl = ev.bannerUrl ? ev.bannerUrl : (await createEventBannerCanvas(ev)).toDataURL('image/png');
             const w = window.open('', '_blank');
             if (!w) { alert('Permita pop-ups para salvar o PDF'); return; }
             const html = `<!doctype html><html><head><meta charset="utf-8">
@@ -316,8 +350,14 @@
         shareWABtn.addEventListener('click', async () => {
           try {
             const ev = window.currentEventDetail || {};
-            const canvas = await createEventBannerCanvas(ev);
-            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+            let blob = null;
+            if (ev.bannerUrl) {
+              blob = await fetchBannerBlob(ev.bannerUrl);
+            }
+            if (!blob) {
+              const canvas = await createEventBannerCanvas(ev);
+              blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+            }
             const file = blob ? new File([blob], 'banner-evento.png', { type: 'image/png' }) : null;
             const shareText = buildWhatsAppText(ev);
             // Web Share API com arquivo (Android/iOS suportado)
@@ -327,7 +367,11 @@
               // Fallback: abre WhatsApp com texto e link
               const waUrl = 'https://wa.me/?text=' + encodeURIComponent(shareText);
               window.open(waUrl, '_blank');
-              alert('O banner PNG foi gerado. Baixe-o e anexe manualmente no WhatsApp.');
+              if (ev.bannerUrl) {
+                alert('Abra o banner pelo botão “Abrir banner” e anexe manualmente no WhatsApp.');
+              } else {
+                alert('O banner PNG foi gerado. Baixe-o e anexe manualmente no WhatsApp.');
+              }
             }
           } catch (e) {
             alert('Não foi possível compartilhar no WhatsApp. Tente baixar o PNG e anexar manualmente.');
@@ -427,6 +471,13 @@
       ctx.fillText('Crie, compartilhe e participe de eventos.', 40, H - 40);
 
       return canvas;
+    }
+    async function fetchBannerBlob(url){
+      try {
+        const res = await fetch(url, { mode: 'cors' });
+        if (!res.ok) return null;
+        return await res.blob();
+      } catch (_) { return null; }
     }
 
     function wrapText(ctx, text, maxWidth){
