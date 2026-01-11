@@ -190,6 +190,33 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// Regerar banner via webhook externo (Zapier/Make)
+router.post('/:id/regenerate-banner', authMiddleware, async (req, res) => {
+  try {
+    const ev = await Event.findById(req.params.id);
+    if (!ev) return res.status(404).json({ error: 'Evento não encontrado' });
+    if (!canEdit(req.user, ev)) return res.status(403).json({ error: 'Sem permissão' });
+    const WEBHOOK = process.env.BANNER_WEBHOOK_URL || process.env.ZAPIER_WEBHOOK_URL || process.env.MAKE_WEBHOOK_URL;
+    if (!WEBHOOK) return res.status(400).json({ error: 'Webhook de banner não configurado' });
+    const payload = {
+      type: 'event.banner.regenerate',
+      eventId: String(ev._id),
+      title: ev.title,
+      description: ev.description || '',
+      date: ev.date,
+      time: ev.time,
+      location: ev.location || '',
+      organizer: ev.organizer || '',
+      detailsUrl: `${process.env.FRONTEND_BASE_URL || ''}/pages/event-details.html?id=${String(ev._id)}`
+    };
+    // Dispara sem bloquear resposta
+    setImmediate(() => postWebhook(WEBHOOK, payload).catch(()=>{}));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Falha ao solicitar regeneração de banner' });
+  }
+});
+
 // Inscrever-se no evento
 router.post('/:id/register', authMiddleware, async (req, res) => {
   try {
