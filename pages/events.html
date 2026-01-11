@@ -480,17 +480,18 @@
         }
 
         .register-btn {
-            padding: 6px 12px;
+            padding: 8px 14px;
             background: var(--secondary-color);
             color: white;
             border: none;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             transition: var(--transition);
             text-decoration: none;
             display: inline-block;
+            text-align: center;
         }
 
         .register-btn:hover {
@@ -498,7 +499,8 @@
             transform: translateY(-2px);
         }
 
-        .event-register-actions { display: flex; gap: 10px; align-items: center; }
+        .event-register-actions { display: flex; gap: 12px; align-items: center; }
+        .event-register-actions .register-btn { width: 150px; }
 
         .no-events {
             grid-column: 1 / -1;
@@ -605,6 +607,8 @@
                 align-items: stretch;
                 gap: 12px;
             }
+            .event-register-actions { flex-direction: column; }
+            .event-register-actions .register-btn { width: 100%; }
 
             .create-event-btn {
                 width: 100%;
