@@ -24,13 +24,24 @@ const PORT = process.env.PORT || 5000;
 connectDB();
 
 // Middleware
-// CORS configurável por ambiente: use CORS_ORIGIN (lista separada por vírgula) ou '*' por padrão
-const corsOrigins = (process.env.CORS_ORIGIN || '*').split(',').map(s => s.trim()).filter(Boolean);
+// CORS configurável por ambiente: usa CORS_ORIGIN (lista separada por vírgula)
+// e inclui automaticamente a origin derivada de FRONTEND_URL/FRONTEND_BASE_URL
+function buildCorsOrigins(){
+    const raw = (process.env.CORS_ORIGIN || '*').split(',').map(s => s.trim()).filter(Boolean);
+    const set = new Set(raw);
+    const extras = [process.env.FRONTEND_URL, process.env.FRONTEND_BASE_URL].filter(Boolean);
+    for (const u of extras){
+        try { const o = new URL(u).origin; if (o && o !== 'null') set.add(o); } catch(_){}
+    }
+    return Array.from(set);
+}
+const corsOrigins = buildCorsOrigins();
 const corsConfig = {
     origin: corsOrigins.length === 1 && corsOrigins[0] === '*' ? '*' : corsOrigins,
     credentials: false,
     optionsSuccessStatus: 204
 };
+console.log('[CORS] origins permitidas:', corsConfig.origin);
 app.use(cors(corsConfig));
 // Garantir resposta ao preflight OPTIONS
 app.options('*', cors(corsConfig));
@@ -56,6 +67,7 @@ app.get('/health', (req, res) => {
     res.json({
         status: 'ok',
         uptime: process.uptime(),
+        cors: { allowed: corsOrigins, receivedOrigin: req.headers.origin || null },
         db: {
             connected: typeof connectDB.isConnected === 'function' ? connectDB.isConnected() : false,
             uriSet: !!process.env.MONGODB_URI
