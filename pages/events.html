@@ -444,6 +444,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: nowrap;
             background: #f8f9fa;
         }
 
@@ -496,6 +497,8 @@
             background: #45a049;
             transform: translateY(-2px);
         }
+
+        .event-register-actions { display: flex; gap: 10px; align-items: center; }
 
         .no-events {
             grid-column: 1 / -1;
@@ -1061,12 +1064,14 @@
                                     <i class="fab fa-whatsapp"></i>
                                 </button>
                             </div>
-                            <button class="register-btn" data-action="register">
-                                Inscrever-se
-                            </button>
-                            <button class="register-btn" data-action="unregister" style="background:#dc3545;">
-                                Cancelar inscrição
-                            </button>
+                            <div class="event-register-actions">
+                                <button class="register-btn" data-action="register">
+                                    Inscrever-se
+                                </button>
+                                <button class="register-btn" data-action="unregister" style="background:#dc3545;">
+                                    Cancelar inscrição
+                                </button>
+                            </div>
                         </div>
                     </div>
                 `;
