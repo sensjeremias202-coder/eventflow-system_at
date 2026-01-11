@@ -628,22 +628,43 @@
       const bottomPadRatio = (format==='story' ? 0.18 : format==='square' ? 0.12 : 0.10);
       const bottomSafeY = Math.round(H * (1 - bottomPadRatio));
 
-      // Subinfo (data/hora)
-      const subSize = Math.round(tSize * 0.55);
+      // Subinfo (data/hora) com quebra de linha dinâmica
+      let subSize = Math.round(tSize * 0.55);
       ctx.fillStyle = accent || pal.sub;
       ctx.font = `600 ${subSize}px Inter, Arial, sans-serif`;
       const dtLine = (dateText && timeText) ? `${dateText} • ${timeText}` : (dateText || timeText || '');
-      // Ajuste de posição para não colar no rodapé
-      const locPreviewSize = Math.round(subSize*0.9);
-      const expectedBlock = (dtLine ? (subSize + Math.round(subSize*0.6)) : 0) + (locText ? locPreviewSize + Math.round(subSize*0.8) : 0);
-      if (y + expectedBlock > bottomSafeY) { y = Math.max(Math.round(H*0.22), bottomSafeY - expectedBlock); }
-      if (dtLine) { ctx.fillText(dtLine, centerX, y + Math.round(subSize*0.2)); y += subSize + Math.round(subSize*0.6); }
+      let dtLines = dtLine ? wrapText(ctx, String(dtLine), titleMaxWidth) : [];
+      const minSubSize = Math.round(H * 0.02);
+      const maxDtLines = (format === 'story') ? 2 : 2;
+      while (dtLines.length > maxDtLines && subSize > minSubSize) {
+        subSize -= 2;
+        ctx.font = `600 ${subSize}px Inter, Arial, sans-serif`;
+        dtLines = wrapText(ctx, String(dtLine), titleMaxWidth);
+      }
 
-      // Local
+      // Local com quebra de linha dinâmica
+      let locSize = Math.round(subSize * 0.9);
       ctx.fillStyle = pal.sub;
-      ctx.font = `500 ${Math.round(subSize*0.9)}px Inter, Arial, sans-serif`;
+      ctx.font = `500 ${locSize}px Inter, Arial, sans-serif`;
       const locLine = locText ? `Local: ${locText}` : '';
-      if (locLine) { ctx.fillText(locLine, centerX, y); y += Math.round(subSize*1.2); }
+      let locLines = locLine ? wrapText(ctx, String(locLine), titleMaxWidth) : [];
+      const maxLocLines = (format === 'story') ? 2 : 2;
+      while (locLines.length > maxLocLines && locSize > minSubSize) {
+        locSize -= 2;
+        ctx.font = `500 ${locSize}px Inter, Arial, sans-serif`;
+        locLines = wrapText(ctx, String(locLine), titleMaxWidth);
+      }
+
+      // Recalcular bloco esperado e ajustar posição
+      const expectedDtBlock = (dtLines.length > 0) ? (dtLines.length * (subSize + Math.round(subSize*0.5))) : 0;
+      const expectedLocBlock = (locLines.length > 0) ? (locLines.length * (locSize + Math.round(subSize*0.6))) : 0;
+      const expectedBlock = expectedDtBlock + expectedLocBlock;
+      if (y + expectedBlock > bottomSafeY) { y = Math.max(Math.round(H*0.22), bottomSafeY - expectedBlock); }
+
+      // Desenhar data/hora
+      dtLines.slice(0, maxDtLines).forEach(line => { ctx.fillText(line, centerX, y + Math.round(subSize*0.2)); y += subSize + Math.round(subSize*0.6); });
+      // Desenhar local
+      locLines.slice(0, maxLocLines).forEach(line => { ctx.fillText(line, centerX, y); y += locSize + Math.round(subSize*0.4); });
 
       // Rodapé
       ctx.fillStyle = '#9ca3af';
