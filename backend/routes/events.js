@@ -27,6 +27,7 @@ function toClient(ev){
     registered: Array.isArray(ev.attendees) ? ev.attendees.length : 0,
     organizer: ev.organizer,
     color: ev.color,
+    bannerUrl: ev.bannerUrl || '',
     attendees: ev.attendees,
     createdBy: ev.createdBy,
     createdAt: ev.createdAt,
@@ -109,6 +110,26 @@ router.post('/', authMiddleware, async (req, res) => {
       const io = req.app.get('io');
       if (io) io.to(`user:${String(req.user._id)}`).emit('event:created', { event: toClient(ev) });
     } catch (_) {}
+
+    // Dispara webhook para automação de banner (Zapier/Make + Canva)
+    try {
+      const WEBHOOK = process.env.BANNER_WEBHOOK_URL || process.env.ZAPIER_WEBHOOK_URL || process.env.MAKE_WEBHOOK_URL;
+      if (WEBHOOK) {
+        // Executa sem bloquear a resposta
+        setImmediate(() => postWebhook(WEBHOOK, {
+          type: 'event.created',
+          eventId: String(ev._id),
+          title: ev.title,
+          description: ev.description || '',
+          date: ev.date,
+          time: ev.time,
+          location: ev.location || '',
+          organizer: ev.organizer || '',
+          // URL pública sugerida para detalhes (frontend)
+          detailsUrl: `${process.env.FRONTEND_BASE_URL || ''}/pages/event-details.html?id=${String(ev._id)}`
+        }).catch(()=>{}));
+      }
+    } catch (_) { /* silencioso */ }
     res.status(201).json(toClient(ev));
   } catch (err) {
     console.error('Erro ao criar evento:', err);
@@ -234,3 +255,32 @@ router.get('/mine', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
+
+// Helper simples para POST JSON em webhook HTTPS
+function postWebhook(url, payload){
+  return new Promise((resolve, reject) => {
+    try {
+      const { URL } = require('url');
+      const u = new URL(url);
+      const https = require('https');
+      const data = Buffer.from(JSON.stringify(payload));
+      const req = https.request({
+        hostname: u.hostname,
+        port: u.port || 443,
+        path: u.pathname + (u.search || ''),
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': data.length
+        }
+      }, (res) => {
+        // Consumir resposta e resolver
+        res.on('data', () => {});
+        res.on('end', () => resolve());
+      });
+      req.on('error', reject);
+      req.write(data);
+      req.end();
+    } catch (e) { reject(e); }
+  });
+}
