@@ -1232,6 +1232,16 @@
                 case 'regen-banner':
                     (async () => {
                         try {
+                            // Verificar se automação de banner está configurada no backend
+                            try {
+                                const st = await api.get('/webhooks/status', { auth: false });
+                                const sj = await st.json().catch(()=>({}));
+                                if (!st.ok || !sj.bannerWebhookConfigured) {
+                                    window.app?.showToast('Automação de banner não configurada no servidor. Configure o webhook para gerar banners.', 'warning');
+                                    return;
+                                }
+                            } catch(_) {}
+
                             const exists = await ensureEventExistsOnServer(eventId);
                             if (!exists) {
                                 const confirmRecreate = confirm('Este evento não existe no servidor. Deseja recriá-lo agora para gerar o banner?');
@@ -1248,6 +1258,10 @@
                             if (!res.ok) {
                                 if (res.status === 404) {
                                     window.app?.showToast('Evento não encontrado no servidor.', 'error');
+                                    return;
+                                }
+                                if (res.status === 400) {
+                                    window.app?.showToast(body.error || 'Solicitação inválida: verifique a configuração do webhook.', 'error');
                                     return;
                                 }
                                 throw new Error(body.error || 'Falha ao solicitar regeneração');
