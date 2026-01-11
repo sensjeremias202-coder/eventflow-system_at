@@ -502,6 +502,9 @@
         .event-register-actions { display: flex; gap: 12px; align-items: center; }
         .event-register-actions .register-btn { width: 150px; }
 
+        .event-register-block { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+        .event-register-label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+
         .no-events {
             grid-column: 1 / -1;
             text-align: center;
@@ -1068,13 +1071,16 @@
                                     <i class="fab fa-whatsapp"></i>
                                 </button>
                             </div>
-                            <div class="event-register-actions">
+                            <div class="event-register-block">
+                                <div class="event-register-label">Inscrever-se e Cancelar inscrição</div>
+                                <div class="event-register-actions">
                                 <button class="register-btn" data-action="register">
                                     Inscrever-se
                                 </button>
                                 <button class="register-btn" data-action="unregister" style="background:#dc3545;">
                                     Cancelar inscrição
                                 </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1204,9 +1210,10 @@
                                     <i class="fab fa-whatsapp"></i>
                                 </button>
                             </div>
-                            <button class="register-btn" data-action="register">
-                                Inscrever-se
-                            </button>
+                            <div class="event-register-block">
+                                <div class="event-register-label">Inscrever-se</div>
+                                <button class="register-btn" data-action="register">Inscrever-se</button>
+                            </div>
                         </div>
                     </div>
                 `;
