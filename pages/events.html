@@ -815,10 +815,18 @@
                 return;
             }
 
+            // Utilitários locais para datas YYYY-MM-DD
+            function parseLocalYmd(ymd){
+                if (!ymd || typeof ymd !== 'string') return new Date(NaN);
+                const [y,m,d] = ymd.split('-').map(Number);
+                return new Date(y, (m||1)-1, d||1);
+            }
+            function monthShortBR(date){ return date.toLocaleDateString('pt-BR', { month: 'short' }); }
+
             eventsGrid.innerHTML = eventsData.map(event => {
-                const date = new Date(event.date);
+                const date = parseLocalYmd(event.date);
                 const day = date.getDate();
-                const month = date.toLocaleDateString('pt-BR', { month: 'short' });
+                const month = monthShortBR(date);
                 const category = event.category;
                 const categoryClass = getCategoryClass(category);
                 const statusText = getStatusText(event.status);
@@ -957,9 +965,9 @@
 
             // Reutilizar a lógica de renderização do loadEvents()
             eventsGrid.innerHTML = events.map(event => {
-                const date = new Date(event.date);
+                const date = parseLocalYmd(event.date);
                 const day = date.getDate();
-                const month = date.toLocaleDateString('pt-BR', { month: 'short' });
+                const month = monthShortBR(date);
                 const category = event.category;
                 const categoryClass = getCategoryClass(category);
                 const statusText = getStatusText(event.status);
