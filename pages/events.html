@@ -1361,8 +1361,12 @@
         document.addEventListener('DOMContentLoaded', () => {
             try { api.requireAuth(); } catch(_) {}
             (async () => {
-                try { const ok = await api.requireVerified(); if (!ok) return; } catch(_) { return; }
-                await syncEventsFromBackend();
+                let ok = false;
+                try { ok = await api.requireVerified(); } catch(_) {}
+                if (ok) {
+                    await syncEventsFromBackend();
+                }
+                // Mesmo não verificado, renderiza dados locais
                 loadEvents();
 
                 // Conectar Socket.IO para receber eventos criados em outros dispositivos
