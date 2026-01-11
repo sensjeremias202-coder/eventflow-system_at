@@ -1321,14 +1321,26 @@
             const titleMaxWidth = W - 120;
             let tSize = Math.round(H * (format==='story' ? 0.065 : format==='square' ? 0.085 : 0.095));
             ctx.fillStyle = pal.title; ctx.font = `700 ${tSize}px Inter, Arial, sans-serif`;
-            const titleLines = wrapText(ctx, String(title).toUpperCase(), titleMaxWidth);
+            let titleLines = wrapText(ctx, String(title).toUpperCase(), titleMaxWidth);
+            const minTSize = Math.round(H * 0.05);
+            while (titleLines.length > 3 && tSize > minTSize) {
+                tSize -= 2;
+                ctx.font = `700 ${tSize}px Inter, Arial, sans-serif`;
+                titleLines = wrapText(ctx, String(title).toUpperCase(), titleMaxWidth);
+            }
             let y = Math.round(H * 0.28);
             titleLines.slice(0,3).forEach(line => { ctx.fillText(line, centerX, y); y += tSize + Math.round(tSize*0.15); });
 
             if (desc) {
-                const descSize = Math.round(tSize * 0.50);
+                let descSize = Math.round(tSize * 0.50);
                 ctx.fillStyle = pal.sub; ctx.font = `500 ${descSize}px Inter, Arial, sans-serif`;
-                const descLines = wrapText(ctx, String(desc), titleMaxWidth);
+                let descLines = wrapText(ctx, String(desc), titleMaxWidth);
+                const minDSize = Math.round(H * 0.02);
+                while (descLines.length > 2 && descSize > minDSize) {
+                    descSize -= 2;
+                    ctx.font = `500 ${descSize}px Inter, Arial, sans-serif`;
+                    descLines = wrapText(ctx, String(desc), titleMaxWidth);
+                }
                 descLines.slice(0,2).forEach(line => { ctx.fillText(line, centerX, y); y += descSize + Math.round(descSize*0.2); });
             }
 
