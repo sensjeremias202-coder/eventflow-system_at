@@ -1721,7 +1721,7 @@
             try {
                 const base = (window.api && window.api.url) ? window.api.url : ((typeof window.API_BASE_URL !== 'undefined' && window.API_BASE_URL) ? window.API_BASE_URL : '');
                 window.socket = io(base, {
-                    transports: ['websocket'],
+                    transports: ['websocket','polling'],
                     auth: { token: api.token.get() }
                 });
                 window.socket.on('connect', () => console.log('[socket] conectado'));

@@ -135,8 +135,14 @@
           // Atualiza eventos locais após sucesso
           try { typeof syncEventsFromBackend === 'function' && await syncEventsFromBackend(); } catch(_) {}
         } catch (e) {
-          console.warn('[offlineQueue] manter item na fila', item.path, e && e.message);
-          next.push(item);
+          var msg = e && e.message ? String(e.message) : '';
+          if (msg.includes('HTTP 403')) {
+            console.warn('[offlineQueue] descartando item por 403 (sem permissão):', item.path);
+            // Não re-enfileira 403 para evitar loops
+          } else {
+            console.warn('[offlineQueue] manter item na fila', item.path, e && e.message);
+            next.push(item);
+          }
         }
       }
       writeQueue(next);

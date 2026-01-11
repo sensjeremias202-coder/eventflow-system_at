@@ -1166,11 +1166,9 @@
 
         // Mostrar detalhes do evento
         function showEventDetails(eventId) {
-            const event = EventflowData.events.find(e => e.id == eventId);
-            if (!event) return;
-
-            // Redirecionar para página de detalhes ou mostrar modal
-            alert(`Detalhes do evento: ${event.title}\n\nDescrição: ${event.description}\nData: ${event.date}\nLocal: ${event.location}`);
+            if (!eventId) return;
+            // Navegar para página dedicada de detalhes
+            window.location.href = `event-details.html?id=${eventId}`;
         }
 
         // Editar evento
@@ -1300,14 +1298,24 @@
                                         window.app?.showToast('Evento atualizado com sucesso!', 'success');
                                         loadEvents();
                                     })
-                                    .catch(err => {
+                                    .catch(async err => {
                                         const ev = EventflowData.events.find(e => String(e.id) === String(eventId));
                                         if (ev) {
                                             Object.assign(ev, eventData);
                                             ev.unsynced = true;
                                             try { saveToLocalStorage && saveToLocalStorage(); } catch(_) {}
-                                            window.offlineQueue && window.offlineQueue.enqueue('PUT', `/events/${eventId}`, eventData, { auth: true });
-                                            window.app?.showToast('Atualização pendente (offline). Será sincronizada ao voltar a conexão.', 'warning');
+                                            // Se for 403, recria no servidor sob o usuário atual em vez de re-enfileirar
+                                            if (String(err && err.message || '').includes('(HTTP 403)')) {
+                                                const ok = await recreateOnServer(eventId);
+                                                if (ok) {
+                                                    window.app?.showToast('Evento recriado e atualizado sob sua conta.', 'success');
+                                                } else {
+                                                    window.app?.showToast('Sem permissão para editar este evento. Mantido localmente.', 'warning');
+                                                }
+                                            } else {
+                                                window.offlineQueue && window.offlineQueue.enqueue('PUT', `/events/${eventId}`, eventData, { auth: true });
+                                                window.app?.showToast('Atualização pendente (offline). Será sincronizada ao voltar a conexão.', 'warning');
+                                            }
                                             loadEvents();
                                         } else {
                                             window.app?.showToast(err.message, 'error');
@@ -1353,7 +1361,7 @@
                 try {
                     const base = (window.api && window.api.url) ? window.api.url : ((typeof window.API_BASE_URL !== 'undefined' && window.API_BASE_URL) ? window.API_BASE_URL : '');
                     window.evSocket = io(base, {
-                        transports: ['websocket'],
+                        transports: ['websocket','polling'],
                         auth: { token: api.token.get() }
                     });
                     window.evSocket.on('event:created', async ({ event }) => {

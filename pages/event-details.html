@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Detalhes do Evento</title>
+  <link rel="stylesheet" href="../styles.css" />
+  <script src="../config.js"></script>
+  <script src="../api.js"></script>
+  <style>
+    .container { max-width: 960px; margin: 0 auto; padding: 16px; }
+    .header { display:flex; align-items:center; justify-content:space-between; }
+    .title { font-size: clamp(1.25rem, 2.5vw, 1.75rem); font-weight: 600; }
+    .actions { display:flex; gap: 8px; }
+    .badge { display:inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; background:#ffcc80; color:#7a4b00; margin-left:8px; }
+    .meta { margin: 12px 0; color:#555; }
+    .meta-item { margin-bottom: 6px; }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .back-link { text-decoration:none; color:#2563eb; display:inline-flex; align-items:center; gap:6px; }
+    .sync-banner { display:none; padding:8px 12px; border-radius:8px; margin:12px 0; }
+    .sync-banner.pending { display:block; background:#fff3cd; color:#664d03; border:1px solid #ffe69c; }
+    .sync-banner.offline { display:block; background:#f8d7da; color:#842029; border:1px solid #f5c2c7; }
+    .sync-banner.syncing { display:block; background:#cff4fc; color:#055160; border:1px solid #b6effb; }
+    .clock { font-variant-numeric: tabular-nums; color:#374151; }
+  </style>
+</head>
+<body>
+  <header class="header container">
+    <a class="back-link" href="events.html" aria-label="Voltar para eventos">
+      <span>←</span>
+      <span>Eventos</span>
+    </a>
+    <div id="br-clock" class="clock"></div>
+  </header>
+
+  <main class="container">
+    <div id="syncBanner" class="sync-banner"></div>
+
+    <div class="card">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div>
+          <div class="title" id="eventTitle">Carregando…</div>
+          <span id="localBadge" class="badge" style="display:none;">Local (não sincronizado)</span>
+        </div>
+        <div class="actions">
+          <button id="editBtn">Editar</button>
+          <button id="deleteBtn">Excluir</button>
+          <button id="registerBtn">Participar</button>
+        </div>
+      </div>
+      <div class="meta">
+        <div class="meta-item"><strong>Data:</strong> <span id="eventDate">—</span></div>
+        <div class="meta-item"><strong>Horário:</strong> <span id="eventTime">—</span></div>
+        <div class="meta-item"><strong>Local:</strong> <span id="eventLocation">—</span></div>
+        <div class="meta-item"><strong>Criador:</strong> <span id="eventCreator">—</span></div>
+      </div>
+      <div>
+        <p id="eventDescription">—</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (function(){
+      const params = new URLSearchParams(window.location.search);
+      const eventId = params.get('id');
+      const syncBanner = document.getElementById('syncBanner');
+      const localBadge = document.getElementById('localBadge');
+
+      function setBanner(status, text){
+        syncBanner.className = 'sync-banner ' + status;
+        syncBanner.textContent = text || '';
+      }
+
+      if (window.initBRClock) {
+        window.initBRClock(document.getElementById('br-clock'));
+      }
+
+      function getLocalEvents(){
+        try {
+          return JSON.parse(localStorage.getItem('events') || '[]');
+        } catch(e){ return []; }
+      }
+
+      function saveLocalEvents(events){
+        localStorage.setItem('events', JSON.stringify(events));
+      }
+
+      function findLocalEvent(id){
+        return getLocalEvents().find(e => e.id === id || e._id === id);
+      }
+
+      function formatBRDateTime(dt){
+        try { return window.formatBRDateTime ? window.formatBRDateTime(dt) : new Date(dt).toLocaleString('pt-BR'); } catch(e){ return dt; }
+      }
+      function formatBRTime(dt){
+        try { return window.formatBRTime ? window.formatBRTime(dt) : new Date(dt).toLocaleTimeString('pt-BR'); } catch(e){ return dt; }
+      }
+
+      async function loadEvent(){
+        if (!eventId){
+          setBanner('offline', 'ID do evento não informado.');
+          return;
+        }
+        // Primeiro tenta do backend
+        try {
+          const data = await api.get(`/events/${eventId}`);
+          renderEvent(data);
+          localBadge.style.display = 'none';
+        } catch(err){
+          // Fallback: tentar do local
+          const local = findLocalEvent(eventId);
+          if (local){
+            renderEvent(local);
+            localBadge.style.display = local.unsynced ? 'inline-block' : 'none';
+            setBanner('offline', 'Exibindo dados locais. Conecte-se para sincronizar.');
+          } else {
+            setBanner('offline', 'Evento não encontrado no servidor nem localmente.');
+          }
+        }
+      }
+
+      function renderEvent(ev){
+        const titleEl = document.getElementById('eventTitle');
+        const dateEl = document.getElementById('eventDate');
+        const timeEl = document.getElementById('eventTime');
+        const locEl = document.getElementById('eventLocation');
+        const descEl = document.getElementById('eventDescription');
+        const creatorEl = document.getElementById('eventCreator');
+
+        titleEl.textContent = ev.title || 'Sem título';
+        const start = ev.startDate || ev.date || ev.start || ev.start_time || ev.datetime || ev.createdAt;
+        dateEl.textContent = formatBRDateTime(start).split(',')[0] || '—';
+        timeEl.textContent = formatBRTime(start) || '—';
+        locEl.textContent = ev.location || ev.place || '—';
+        descEl.textContent = ev.description || '—';
+        creatorEl.textContent = (ev.creator && (ev.creator.name || ev.creator.email)) || ev.userName || ev.userEmail || '—';
+
+        // Ajusta botão participar com base no estado
+        const isRegistered = Array.isArray(ev.attendees) && ev.attendees.includes(ev.currentUserId);
+        document.getElementById('registerBtn').textContent = isRegistered ? 'Sair' : 'Participar';
+      }
+
+      async function ensureServerEvent(ev){
+        try {
+          await api.get(`/events/${ev._id || ev.id}`);
+          return ev._id || ev.id;
+        } catch(err){
+          // Recriar no servidor
+          try {
+            const payload = {
+              title: ev.title,
+              description: ev.description,
+              location: ev.location,
+              startDate: ev.startDate || ev.date || ev.start,
+              endDate: ev.endDate || ev.end,
+            };
+            const created = await api.post('/events', payload);
+            // Atualiza ID local
+            const events = getLocalEvents();
+            const idx = events.findIndex(e => (e.id === (ev.id)|| e._id === (ev._id)));
+            if (idx > -1){
+              events[idx] = { ...events[idx], _id: created._id || created.id, unsynced: false };
+              saveLocalEvents(events);
+            }
+            return created._id || created.id;
+          } catch(e){
+            setBanner('offline', 'Falha ao recriar o evento no servidor. Operações serão enfileiradas.');
+            throw e;
+          }
+        }
+      }
+
+      async function handleRegister(){
+        const local = findLocalEvent(eventId);
+        const currentId = local ? (local._id || local.id) : eventId;
+        // Tentar servidor; se falhar, enfileirar
+        try {
+          const confirmedId = await ensureServerEvent(local || { id: currentId });
+          await api.post(`/events/${confirmedId}/register`, {});
+          setBanner('syncing', 'Você está participando do evento.');
+        } catch(err){
+          if (window.offlineQueue){
+            window.offlineQueue.enqueue('POST', `/events/${currentId}/register`, {}, { auth: true });
+            setBanner('pending', 'Sem conexão. Registro enfileirado.');
+          } else {
+            setBanner('offline', 'Sem conexão. Tente novamente depois.');
+          }
+        }
+      }
+
+      async function handleUnregister(){
+        const local = findLocalEvent(eventId);
+        const currentId = local ? (local._id || local.id) : eventId;
+        try {
+          const confirmedId = await ensureServerEvent(local || { id: currentId });
+          await api.post(`/events/${confirmedId}/unregister`, {});
+          setBanner('syncing', 'Você saiu do evento.');
+        } catch(err){
+          if (window.offlineQueue){
+            window.offlineQueue.enqueue('POST', `/events/${currentId}/unregister`, {}, { auth: true });
+            setBanner('pending', 'Sem conexão. Saída enfileirada.');
+          } else {
+            setBanner('offline', 'Sem conexão. Tente novamente depois.');
+          }
+        }
+      }
+
+      async function handleDelete(){
+        if (!confirm('Tem certeza que deseja excluir este evento?')) return;
+        const local = findLocalEvent(eventId);
+        const currentId = local ? (local._id || local.id) : eventId;
+        try {
+          const confirmedId = await ensureServerEvent(local || { id: currentId });
+          await api.delete(`/events/${confirmedId}`);
+          // Remove local
+          const events = getLocalEvents().filter(e => (e.id !== eventId && e._id !== eventId));
+          saveLocalEvents(events);
+          setBanner('syncing', 'Evento excluído.');
+          setTimeout(()=> window.location.href = 'events.html', 500);
+        } catch(err){
+          if (window.offlineQueue){
+            window.offlineQueue.enqueue('DELETE', `/events/${currentId}`, null, { auth: true });
+            // Remove local imediatamente
+            const events = getLocalEvents().filter(e => (e.id !== eventId && e._id !== eventId));
+            saveLocalEvents(events);
+            setBanner('pending', 'Sem conexão. Exclusão enfileirada e removida localmente.');
+            setTimeout(()=> window.location.href = 'events.html', 800);
+          } else {
+            setBanner('offline', 'Sem conexão. Tente novamente depois.');
+          }
+        }
+      }
+
+      function initActions(){
+        const editBtn = document.getElementById('editBtn');
+        const deleteBtn = document.getElementById('deleteBtn');
+        const registerBtn = document.getElementById('registerBtn');
+
+        editBtn.addEventListener('click', () => {
+          // Redireciona para página de edição (se existir) ou usa events.html
+          window.location.href = 'events.html#edit=' + encodeURIComponent(eventId);
+        });
+
+        deleteBtn.addEventListener('click', handleDelete);
+
+        registerBtn.addEventListener('click', async () => {
+          const text = registerBtn.textContent || '';
+          if (text.toLowerCase().includes('participar')) await handleRegister();
+          else await handleUnregister();
+        });
+      }
+
+      if (window.offlineQueue && window.offlineQueue.onChange){
+        window.offlineQueue.onChange((q) => {
+          if (!navigator.onLine){ setBanner('offline', 'Sem conexão. Operações serão sincronizadas depois.'); return; }
+          if (q.length > 0){ setBanner('pending', `Operações pendentes: ${q.length}.`); }
+          else { setBanner('', ''); syncBanner.style.display = 'none'; }
+        });
+      }
+
+      initActions();
+      loadEvent();
+    })();
+  </script>
+</body>
+</html>

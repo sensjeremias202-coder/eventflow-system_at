@@ -4,8 +4,6 @@ const STATIC_CACHE = `static-${VERSION}`;
 const API_CACHE = `api-${VERSION}`;
 
 const STATIC_FILES = [
-  '/',
-  '/eventflow-system_at/',
   '/eventflow-system_at/index.html',
   '/eventflow-system_at/styles.css',
   '/eventflow-system_at/config.js',
@@ -15,13 +13,29 @@ const STATIC_FILES = [
   '/eventflow-system_at/pages/dashboard.html',
   '/eventflow-system_at/pages/calendar.html',
   '/eventflow-system_at/pages/chat.html',
+  '/eventflow-system_at/pages/event-details.html',
   '/eventflow-system_at/pages/profile.html',
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(STATIC_CACHE).then(cache => cache.addAll(STATIC_FILES)).then(()=>self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(STATIC_CACHE);
+    for (const url of STATIC_FILES) {
+      try {
+        const req = new Request(url, { cache: 'reload' });
+        const res = await fetch(req);
+        if (res && res.ok) {
+          await cache.put(req, res);
+        } else {
+          // Ignora arquivos que retornam erro
+          console.warn('[SW] ignorando precache não-OK:', url, res && res.status);
+        }
+      } catch (e) {
+        console.warn('[SW] falha ao precachear:', url, e && e.message);
+      }
+    }
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (event) => {
