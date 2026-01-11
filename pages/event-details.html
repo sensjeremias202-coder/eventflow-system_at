@@ -38,8 +38,7 @@
     .banner-config { margin-top: 8px; display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
     .banner-config input[type="url"] { flex: 1; min-width: 240px; padding:6px 8px; border:1px solid #e5e7eb; border-radius:8px; }
     .banner-config input[type="file"] { padding:6px 0; }
-    .banner-config { margin-top: 8px; display:flex; gap:8px; align-items:center; }
-    .banner-config input { flex: 1; padding:6px 8px; border:1px solid #e5e7eb; border-radius:8px; }
+    .banner-config select, .banner-config input[type="color"] { padding:6px 8px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; }
   </style>
 </head>
 <body>
@@ -81,10 +80,27 @@
         <div id="bannerPreview" class="banner-preview">
           <img id="bannerImg" alt="Banner do Evento" />
           <div class="banner-config">
-            <input id="customBannerInput" type="url" placeholder="Ex.: ../images/banner.jpeg ou https://exemplo.com/banner.jpg" />
+            <input id="customBannerInput" type="url" placeholder="Ex.: ../images/banner.jpg ou https://exemplo.com/banner.jpg" />
             <button id="saveCustomBannerBtn">Salvar Banner</button>
             <input id="customBannerFile" type="file" accept="image/*" />
             <button id="clearCustomBannerBtn">Remover Banner</button>
+            <select id="bannerFormat" title="Formato">
+              <option value="wide">Horizontal (1200x628)</option>
+              <option value="square">Quadrado (1080x1080)</option>
+              <option value="story">Story (1080x1920)</option>
+            </select>
+            <select id="bannerTheme" title="Tema">
+              <option value="auto">Auto</option>
+              <option value="sunset">Sunset</option>
+              <option value="ocean">Ocean</option>
+              <option value="forest">Forest</option>
+              <option value="royal">Royal</option>
+              <option value="minimal">Minimal</option>
+            </select>
+            <label style="display:flex; align-items:center; gap:6px;">
+              Cor:
+              <input id="accentColor" type="color" value="#f59e0b" />
+            </label>
           </div>
         </div>
       </div>
@@ -314,6 +330,9 @@
         const saveCustomBannerBtn = document.getElementById('saveCustomBannerBtn');
         const customBannerFile = document.getElementById('customBannerFile');
         const clearCustomBannerBtn = document.getElementById('clearCustomBannerBtn');
+        const bannerFormatSel = document.getElementById('bannerFormat');
+        const bannerThemeSel = document.getElementById('bannerTheme');
+        const accentColorInput = document.getElementById('accentColor');
         // Removido: ação de regenerar banner (automação desativada)
 
         editBtn.addEventListener('click', () => {
@@ -333,6 +352,7 @@
           try {
             const ev = window.currentEventDetail || {};
             const customUrl = getCustomBannerUrl(eventId);
+            const opts = getBannerOptionsFromUI(ev);
             if (customUrl) {
               const blob = await fetchImageBlob(customUrl);
               if (blob) {
@@ -347,7 +367,7 @@
                 return;
               }
             }
-            const canvas = await createEventBannerCanvas(ev);
+            const canvas = await createEventBannerCanvas(ev, opts);
             canvas.toBlob((blob) => {
               if (!blob) return;
               const url = URL.createObjectURL(blob);
@@ -365,6 +385,7 @@
           try {
             const ev = window.currentEventDetail || {};
             const customUrl = getCustomBannerUrl(eventId);
+            const opts = getBannerOptionsFromUI(ev);
             let dataUrl = '';
             let naturalW = 0, naturalH = 0;
             if (customUrl) {
@@ -379,7 +400,7 @@
               }
             }
             if (!dataUrl) {
-              const canvas = await createEventBannerCanvas(ev);
+              const canvas = await createEventBannerCanvas(ev, opts);
               naturalW = canvas.width; naturalH = canvas.height;
               dataUrl = canvas.toDataURL('image/png');
             }
@@ -401,10 +422,11 @@
           try {
             const ev = window.currentEventDetail || {};
             const customUrl = getCustomBannerUrl(eventId);
+            const opts = getBannerOptionsFromUI(ev);
             let blob = null;
             if (customUrl) { blob = await fetchImageBlob(customUrl); }
             if (!blob) {
-              const canvas = await createEventBannerCanvas(ev);
+              const canvas = await createEventBannerCanvas(ev, opts);
               blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
             }
             const ext = (blob && (blob.type.includes('jpeg') || blob.type.includes('jpg'))) ? 'jpg' : 'png';
@@ -512,62 +534,86 @@
       } catch(e){ console.error('Falha ao definir banner de teste', e); }
     }
 
-    // Geração de banner (PNG) via Canvas
-    async function createEventBannerCanvas(ev){
+    function getBannerOptionsFromUI(ev){
+      const format = (document.getElementById('bannerFormat')?.value) || 'wide';
+      const theme = (document.getElementById('bannerTheme')?.value) || 'auto';
+      const accent = (document.getElementById('accentColor')?.value) || '#f59e0b';
+      return { format, theme, accent };
+    }
+
+    // Geração de banner adaptável via Canvas
+    async function createEventBannerCanvas(ev, opts={}){
       const title = (ev && ev.title) || document.getElementById('eventTitle').textContent || 'Evento';
       const dateText = (ev && (ev.date || ev.startDate)) || document.getElementById('eventDate').textContent || '';
       const timeText = (ev && ev.time) || document.getElementById('eventTime').textContent || '';
       const locText = (ev && (ev.location || ev.place)) || document.getElementById('eventLocation').textContent || '';
 
-      const W = 1200, H = 628; // formato de banner social
+      const format = opts.format || 'wide';
+      const sizeMap = { wide: { W: 1200, H: 628 }, square: { W: 1080, H: 1080 }, story: { W: 1080, H: 1920 } };
+      const { W, H } = sizeMap[format] || sizeMap.wide;
       const canvas = document.createElement('canvas');
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d');
 
+      // Paletas por tema
+      const theme = (opts.theme || 'auto');
+      const accent = (opts.accent || '#f59e0b');
+      const palettes = {
+        sunset: { bg1: '#1f2937', bg2: '#7c2d12', deco: '#ffffff', brand: '#fb923c', title: '#fff', sub: '#fde68a' },
+        ocean: { bg1: '#0f172a', bg2: '#0ea5e9', deco: '#ffffff', brand: '#93c5fd', title: '#fff', sub: '#a5f3fc' },
+        forest:{ bg1: '#0b1020', bg2: '#065f46', deco: '#ffffff', brand: '#34d399', title: '#fff', sub: '#bbf7d0' },
+        royal: { bg1: '#111827', bg2: '#4338ca', deco: '#ffffff', brand: '#c4b5fd', title: '#fff', sub: '#e9d5ff' },
+        minimal:{ bg1: '#111827', bg2: '#111827', deco: '#ffffff', brand: '#e5e7eb', title: '#fff', sub: '#9ca3af' }
+      };
+      const pickAuto = () => palettes.sunset;
+      const pal = theme === 'auto' ? pickAuto() : (palettes[theme] || palettes.sunset);
+
       // Fundo gradiente
       const grad = ctx.createLinearGradient(0,0,W,H);
-      grad.addColorStop(0, '#1f2937');
-      grad.addColorStop(1, '#111827');
+      grad.addColorStop(0, pal.bg1);
+      grad.addColorStop(1, pal.bg2);
       ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
 
-      // Decoração sutil (círculos)
-      ctx.globalAlpha = 0.08; ctx.fillStyle = '#ffffff';
-      for (let i=0;i<22;i++){
-        const r = Math.random()*50+20;
-        const x = Math.random()*W, y = Math.random()*H;
-        ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
-      }
+      // Textura/Decoração
+      ctx.globalAlpha = 0.06; ctx.fillStyle = pal.deco;
+      for (let i=0;i<28;i++){ const r=Math.random()*60+20; const x=Math.random()*W, y=Math.random()*H; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); }
       ctx.globalAlpha = 1;
 
-      // Cabeçalho/branding
-      ctx.fillStyle = '#93c5fd';
-      ctx.font = 'bold 40px Inter, Arial, sans-serif';
-      ctx.fillText('Eventflow', 40, 70);
+      // Faixa superior com marca
+      const brandBarH = Math.max(40, Math.round(H*0.06));
+      ctx.fillStyle = pal.brand; ctx.globalAlpha = 0.25;
+      ctx.fillRect(0, 0, W, brandBarH);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = pal.brand;
+      ctx.font = `700 ${Math.round(brandBarH*0.6)}px Inter, Arial, sans-serif`;
+      ctx.fillText('Eventflow', 24, Math.round(brandBarH*0.75));
 
-      // Título (wrap)
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '700 64px Inter, Arial, sans-serif';
-      const maxWidth = W - 80;
-      const lines = wrapText(ctx, title.toUpperCase(), maxWidth);
-      let y = 160;
-      lines.slice(0,3).forEach(line => { ctx.fillText(line, 40, y); y += 74; });
+      // Título principal (auto tamanho)
+      const titleMaxWidth = W - 80;
+      let tSize = Math.round(H * (format==='story' ? 0.06 : format==='square' ? 0.08 : 0.09));
+      ctx.fillStyle = pal.title;
+      ctx.font = `700 ${tSize}px Inter, Arial, sans-serif`;
+      const lines = wrapText(ctx, String(title).toUpperCase(), titleMaxWidth);
+      let y = Math.round(H * 0.22);
+      lines.slice(0,3).forEach(line => { ctx.fillText(line, 40, y); y += tSize + Math.round(tSize*0.15); });
 
-      // Data e hora
-      ctx.fillStyle = '#facc15';
-      ctx.font = '600 36px Inter, Arial, sans-serif';
+      // Subinfo (data/hora)
+      const subSize = Math.round(tSize * 0.55);
+      ctx.fillStyle = accent || pal.sub;
+      ctx.font = `600 ${subSize}px Inter, Arial, sans-serif`;
       const dtLine = (dateText && timeText) ? `${dateText} • ${timeText}` : (dateText || timeText || '');
-      ctx.fillText(dtLine, 40, y + 16);
+      if (dtLine) { ctx.fillText(dtLine, 40, y + Math.round(subSize*0.2)); }
 
       // Local
-      ctx.fillStyle = '#e5e7eb';
-      ctx.font = '500 32px Inter, Arial, sans-serif';
+      ctx.fillStyle = pal.sub;
+      ctx.font = `500 ${Math.round(subSize*0.9)}px Inter, Arial, sans-serif`;
       const locLine = locText ? `Local: ${locText}` : '';
-      if (locLine) ctx.fillText(locLine, 40, y + 60);
+      if (locLine) ctx.fillText(locLine, 40, y + Math.round(subSize*1.5));
 
       // Rodapé
       ctx.fillStyle = '#9ca3af';
-      ctx.font = '400 24px Inter, Arial, sans-serif';
-      ctx.fillText('Crie, compartilhe e participe de eventos.', 40, H - 40);
+      ctx.font = `400 ${Math.round(H*0.025)}px Inter, Arial, sans-serif`;
+      ctx.fillText('Crie, compartilhe e participe de eventos.', 40, H - Math.round(H*0.03));
 
       return canvas;
     }
