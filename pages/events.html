@@ -783,7 +783,9 @@
                         registered: e.registered || 0,
                         organizer: e.organizer || 'Organizador',
                         color: e.color || '#1976d2',
-                        attendees: e.attendees || []
+                        attendees: e.attendees || [],
+                        // Inclui URL do banner gerado (Canva/Zapier/Make)
+                        bannerUrl: e.bannerUrl || null
                     }));
                     try { saveToLocalStorage && saveToLocalStorage(); } catch(_) {}
                 }
@@ -1636,6 +1638,21 @@
                     }
                 });
             }
+
+            // Helper de teste: simula recebimento de event:updated com bannerUrl
+            // Uso no console: window.testBannerUpdate('<eventId>', 'https://canva.com/arquivo.png')
+            try {
+                window.testBannerUpdate = function(eventId, bannerUrl){
+                    const ev = (window.EventflowData && window.EventflowData.events || []).find(e => String(e.id) === String(eventId));
+                    if (!ev) { console.warn('Evento não encontrado para teste', eventId); return; }
+                    ev.bannerUrl = bannerUrl || ev.bannerUrl || null;
+                    ev.bannerGenerating = false;
+                    try { window.saveToLocalStorage && window.saveToLocalStorage(); } catch(_) {}
+                    if (window.app && typeof window.app.showToast === 'function') { window.app.showToast('Banner atualizado (teste).', 'success'); }
+                    // Re-renderiza para exibir botão "Abrir banner"
+                    try { loadEvents(); } catch(_) {}
+                };
+            } catch(_) {}
         });
     </script>
 </body>
