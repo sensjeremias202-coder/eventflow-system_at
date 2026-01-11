@@ -267,7 +267,9 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-image: url('https://web.whatsapp.com/img/bg-chat-tile-light_a4be512e7195b6b733d9110b408f075d.png');
+            /* Substitui recurso externo por padrão local para evitar 400 */
+            background-image: radial-gradient(circle, rgba(0,0,0,0.2) 1px, transparent 1px);
+            background-size: 13px 13px;
             opacity: 0.06;
             z-index: 0;
         }
@@ -1086,15 +1088,20 @@
             if (!conversation) return;
 
             // Mostrar header do chat
-            document.getElementById('chatHeader').style.display = 'flex';
-            document.getElementById('chatWithName').textContent = conversation.name;
-            document.getElementById('chatStatus').textContent = conversation.online ? 'Online' : conversation.lastSeen;
+            const headerEl = document.getElementById('chatHeader');
+            if (headerEl) headerEl.style.display = 'flex';
+            const nameEl = document.getElementById('chatWithName');
+            if (nameEl) nameEl.textContent = conversation.name;
+            const statusEl = document.getElementById('chatStatus');
+            if (statusEl) statusEl.textContent = conversation.online ? 'Online' : conversation.lastSeen;
             
             // Esconder mensagem de "selecione uma conversa"
-            document.getElementById('noChatSelected').style.display = 'none';
+            const noSelEl = document.getElementById('noChatSelected');
+            if (noSelEl) noSelEl.style.display = 'none';
             
             // Mostrar input de mensagem
-            document.getElementById('messageInputContainer').style.display = 'block';
+            const inputEl = document.getElementById('messageInputContainer');
+            if (inputEl) inputEl.style.display = 'block';
             
             // Carregar mensagens
             loadMessages(conversationId);
