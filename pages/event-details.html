@@ -54,6 +54,9 @@
           <button id="editBtn">Editar</button>
           <button id="deleteBtn">Excluir</button>
           <button id="registerBtn">Participar</button>
+          <button id="downloadPNGBtn" title="Baixar banner como PNG">Baixar PNG</button>
+          <button id="savePDFBtn" title="Salvar/Imprimir PDF">Salvar PDF</button>
+          <button id="shareWABtn" title="Compartilhar no WhatsApp">WhatsApp</button>
         </div>
       </div>
       <div class="meta">
@@ -158,6 +161,9 @@
         // Ajusta botão participar com base no estado
         const isRegistered = Array.isArray(ev.attendees) && ev.attendees.includes(ev.currentUserId);
         document.getElementById('registerBtn').textContent = isRegistered ? 'Sair' : 'Participar';
+
+        // guarda referência para gerar banner
+        window.currentEventDetail = ev;
       }
 
       async function ensureServerEvent(ev){
@@ -255,6 +261,9 @@
         const editBtn = document.getElementById('editBtn');
         const deleteBtn = document.getElementById('deleteBtn');
         const registerBtn = document.getElementById('registerBtn');
+        const downloadPNGBtn = document.getElementById('downloadPNGBtn');
+        const savePDFBtn = document.getElementById('savePDFBtn');
+        const shareWABtn = document.getElementById('shareWABtn');
 
         editBtn.addEventListener('click', () => {
           // Redireciona para página de edição (se existir) ou usa events.html
@@ -267,6 +276,60 @@
           const text = registerBtn.textContent || '';
           if (text.toLowerCase().includes('participar')) await handleRegister();
           else await handleUnregister();
+        });
+
+        downloadPNGBtn.addEventListener('click', async () => {
+          try {
+            const canvas = await createEventBannerCanvas(window.currentEventDetail);
+            canvas.toBlob((blob) => {
+              if (!blob) return;
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              const title = (window.currentEventDetail && window.currentEventDetail.title) || 'evento';
+              a.download = `banner-${title.replace(/\s+/g,'-').toLowerCase()}.png`;
+              document.body.appendChild(a); a.click();
+              setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
+            }, 'image/png');
+          } catch (e) { alert('Falha ao gerar banner PNG'); }
+        });
+
+        savePDFBtn.addEventListener('click', async () => {
+          try {
+            const canvas = await createEventBannerCanvas(window.currentEventDetail);
+            const dataUrl = canvas.toDataURL('image/png');
+            const w = window.open('', '_blank');
+            if (!w) { alert('Permita pop-ups para salvar o PDF'); return; }
+            const html = `<!doctype html><html><head><meta charset="utf-8">
+              <title>Banner do Evento</title>
+              <style>@page{size:A4;margin:12mm} img{width:100%; height:auto} body{margin:0; padding:12mm;}</style>
+            </head><body><img src="${dataUrl}" alt="Banner do Evento" /></body></html>`;
+            w.document.open(); w.document.write(html); w.document.close();
+            // aguarda carregar a imagem antes de imprimir
+            const img = w.document.querySelector('img');
+            img.onload = () => { try { w.focus(); w.print(); } catch(_){} };
+          } catch (e) { alert('Falha ao preparar PDF'); }
+        });
+
+        shareWABtn.addEventListener('click', async () => {
+          try {
+            const ev = window.currentEventDetail || {};
+            const canvas = await createEventBannerCanvas(ev);
+            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+            const file = blob ? new File([blob], 'banner-evento.png', { type: 'image/png' }) : null;
+            const shareText = buildWhatsAppText(ev);
+            // Web Share API com arquivo (Android/iOS suportado)
+            if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+              await navigator.share({ files: [file], text: shareText, title: ev.title || 'Evento' });
+            } else {
+              // Fallback: abre WhatsApp com texto e link
+              const waUrl = 'https://wa.me/?text=' + encodeURIComponent(shareText);
+              window.open(waUrl, '_blank');
+              alert('O banner PNG foi gerado. Baixe-o e anexe manualmente no WhatsApp.');
+            }
+          } catch (e) {
+            alert('Não foi possível compartilhar no WhatsApp. Tente baixar o PNG e anexar manualmente.');
+          }
         });
       }
 
@@ -303,6 +366,95 @@
         });
       } catch (_) {}
     })();
+
+    // Geração de banner (PNG) via Canvas
+    async function createEventBannerCanvas(ev){
+      const title = (ev && ev.title) || document.getElementById('eventTitle').textContent || 'Evento';
+      const dateText = (ev && (ev.date || ev.startDate)) || document.getElementById('eventDate').textContent || '';
+      const timeText = (ev && ev.time) || document.getElementById('eventTime').textContent || '';
+      const locText = (ev && (ev.location || ev.place)) || document.getElementById('eventLocation').textContent || '';
+
+      const W = 1200, H = 628; // formato de banner social
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+
+      // Fundo gradiente
+      const grad = ctx.createLinearGradient(0,0,W,H);
+      grad.addColorStop(0, '#1f2937');
+      grad.addColorStop(1, '#111827');
+      ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+
+      // Decoração sutil (círculos)
+      ctx.globalAlpha = 0.08; ctx.fillStyle = '#ffffff';
+      for (let i=0;i<22;i++){
+        const r = Math.random()*50+20;
+        const x = Math.random()*W, y = Math.random()*H;
+        ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      // Cabeçalho/branding
+      ctx.fillStyle = '#93c5fd';
+      ctx.font = 'bold 40px Inter, Arial, sans-serif';
+      ctx.fillText('Eventflow', 40, 70);
+
+      // Título (wrap)
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 64px Inter, Arial, sans-serif';
+      const maxWidth = W - 80;
+      const lines = wrapText(ctx, title.toUpperCase(), maxWidth);
+      let y = 160;
+      lines.slice(0,3).forEach(line => { ctx.fillText(line, 40, y); y += 74; });
+
+      // Data e hora
+      ctx.fillStyle = '#facc15';
+      ctx.font = '600 36px Inter, Arial, sans-serif';
+      const dtLine = (dateText && timeText) ? `${dateText} • ${timeText}` : (dateText || timeText || '');
+      ctx.fillText(dtLine, 40, y + 16);
+
+      // Local
+      ctx.fillStyle = '#e5e7eb';
+      ctx.font = '500 32px Inter, Arial, sans-serif';
+      const locLine = locText ? `Local: ${locText}` : '';
+      if (locLine) ctx.fillText(locLine, 40, y + 60);
+
+      // Rodapé
+      ctx.fillStyle = '#9ca3af';
+      ctx.font = '400 24px Inter, Arial, sans-serif';
+      ctx.fillText('Crie, compartilhe e participe de eventos.', 40, H - 40);
+
+      return canvas;
+    }
+
+    function wrapText(ctx, text, maxWidth){
+      const words = String(text).split(/\s+/);
+      const lines = []; let current = '';
+      for (let i=0;i<words.length;i++){
+        const test = current ? current + ' ' + words[i] : words[i];
+        if (ctx.measureText(test).width <= maxWidth){ current = test; }
+        else { if (current) lines.push(current); current = words[i]; }
+      }
+      if (current) lines.push(current);
+      return lines;
+    }
+
+    function buildWhatsAppText(ev){
+      const title = (ev && ev.title) || document.getElementById('eventTitle').textContent || 'Evento';
+      const dateText = (ev && (ev.date || ev.startDate)) || document.getElementById('eventDate').textContent || '';
+      const timeText = (ev && ev.time) || document.getElementById('eventTime').textContent || '';
+      const locText = (ev && (ev.location || ev.place)) || document.getElementById('eventLocation').textContent || '';
+      const link = location.href;
+      const lines = [
+        `📣 ${title}`,
+        dateText || '',
+        timeText ? `Horário: ${timeText}` : '',
+        locText ? `Local: ${locText}` : '',
+        '',
+        `🔗 Detalhes: ${link}`
+      ].filter(Boolean);
+      return lines.join('\n');
+    }
   </script>
 </body>
 </html>
