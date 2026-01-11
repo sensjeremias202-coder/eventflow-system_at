@@ -46,6 +46,15 @@
                 <header id="bannerEditorListTitle">Editar estilo do banner (evento)</header>
                 <section>
                     <div>
+                        <label for="be-list-preset">Preset de tipografia</label>
+                        <select id="be-list-preset">
+                            <option value="padrao">Recomendado (Impact + Lobster + Times + Arial + Playfair)</option>
+                            <option value="moderno">Moderno (Arial Black/Inter, cores frias)</option>
+                            <option value="elegante">Elegante (Playfair, tons suaves)</option>
+                            <option value="personalizado">Personalizado</option>
+                        </select>
+                    </div>
+                    <div>
                         <label for="be-list-brand-font">Fonte da marca</label>
                         <select id="be-list-brand-font">
                             <option value="Impact, Haettenschweiler, 'Arial Black', sans-serif">Impact</option>
@@ -1508,6 +1517,7 @@
             const cancel = document.getElementById('be-list-cancel');
             const apply = document.getElementById('be-list-apply');
             const save = document.getElementById('be-list-save');
+            const preset = document.getElementById('be-list-preset');
             const fields = Object.values(collectBannerEditorFields());
             fields.forEach(el => el?.addEventListener('input', renderBannerPreviewInModal));
             cancel?.addEventListener('click', closeBannerEditor);
@@ -1520,8 +1530,78 @@
                 closeBannerEditor();
             });
             modal?.addEventListener('click', (e) => { if (e.target === modal) closeBannerEditor(); });
+            preset?.addEventListener('change', () => {
+                const name = preset.value || 'padrao';
+                applyTypographyPreset(name);
+                renderBannerPreviewInModal();
+            });
         }
         document.addEventListener('DOMContentLoaded', attachBannerEditorModalHandlers);
+
+        function getTypographyPresets(){
+            return {
+                padrao: {
+                    brandFont: "Impact, Haettenschweiler, 'Arial Black', sans-serif",
+                    brandColor: '#fb923c',
+                    titleFont: "'Lobster', 'Segoe UI', Arial, sans-serif",
+                    titleColor: '#ffffff',
+                    titleUppercase: true,
+                    descFont: "'Times New Roman', Times, serif",
+                    descColor: '#fde68a',
+                    descRatio: 0.60,
+                    subFont: 'Inter, Arial, sans-serif',
+                    subColor: '#fde68a',
+                    locFont: "Arial, 'Helvetica Neue', Helvetica, sans-serif",
+                    locColor: '#bbf7d0',
+                    locRatio: 0.85,
+                    footerFont: "'Playfair Display', Georgia, serif",
+                    footerColor: '#9ca3af'
+                },
+                moderno: {
+                    brandFont: "'Arial Black', Arial, sans-serif",
+                    brandColor: '#93c5fd',
+                    titleFont: 'Inter, Arial, sans-serif',
+                    titleColor: '#ffffff',
+                    titleUppercase: true,
+                    descFont: 'Inter, Arial, sans-serif',
+                    descColor: '#a5f3fc',
+                    descRatio: 0.55,
+                    subFont: 'Inter, Arial, sans-serif',
+                    subColor: '#93c5fd',
+                    locFont: 'Inter, Arial, sans-serif',
+                    locColor: '#c4b5fd',
+                    locRatio: 0.80,
+                    footerFont: 'Inter, Arial, sans-serif',
+                    footerColor: '#9ca3af'
+                },
+                elegante: {
+                    brandFont: "Impact, Haettenschweiler, 'Arial Black', sans-serif",
+                    brandColor: '#c4b5fd',
+                    titleFont: "'Playfair Display', Georgia, serif",
+                    titleColor: '#ffffff',
+                    titleUppercase: true,
+                    descFont: "'Playfair Display', Georgia, serif",
+                    descColor: '#e9d5ff',
+                    descRatio: 0.65,
+                    subFont: 'Inter, Arial, sans-serif',
+                    subColor: '#e9d5ff',
+                    locFont: "Arial, 'Helvetica Neue', Helvetica, sans-serif",
+                    locColor: '#e9d5ff',
+                    locRatio: 0.80,
+                    footerFont: "'Playfair Display', Georgia, serif",
+                    footerColor: '#c4b5fd'
+                }
+            };
+        }
+        function applyTypographyPreset(name){
+            const presets = getTypographyPresets();
+            const cfg = presets[name] || presets.padrao;
+            const fields = collectBannerEditorFields();
+            Object.entries(cfg).forEach(([k,v]) => {
+                const el = fields[k]; if (!el) return;
+                if (el.type === 'checkbox') el.checked = !!v; else el.value = String(v);
+            });
+        }
 
         // Geração de banner adaptável
         async function createEventBannerCanvas(ev, opts={}){
