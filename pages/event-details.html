@@ -615,12 +615,13 @@
         ctx.font = `500 ${descSize}px Inter, Arial, sans-serif`;
         let descLines = wrapText(ctx, String(desc), titleMaxWidth);
         const minDSize = Math.round(H * 0.02);
-        while (descLines.length > 2 && descSize > minDSize) {
+        const maxDescLines = (format === 'story') ? 3 : 2;
+        while (descLines.length > maxDescLines && descSize > minDSize) {
           descSize -= 2;
           ctx.font = `500 ${descSize}px Inter, Arial, sans-serif`;
           descLines = wrapText(ctx, String(desc), titleMaxWidth);
         }
-        descLines.slice(0,2).forEach(line => { ctx.fillText(line, centerX, y); y += descSize + Math.round(descSize*0.2); });
+        descLines.slice(0,maxDescLines).forEach(line => { ctx.fillText(line, centerX, y); y += descSize + Math.round(descSize*0.2); });
       }
 
       // Espaçamento mínimo do rodapé por formato
