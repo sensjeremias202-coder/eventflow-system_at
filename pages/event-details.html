@@ -136,10 +136,21 @@
         const descEl = document.getElementById('eventDescription');
         const creatorEl = document.getElementById('eventCreator');
 
+        // Utiliza parsing local para datas YYYY-MM-DD
+        function parseLocalYmd(ymd){
+          if (!ymd || typeof ymd !== 'string') return new Date(NaN);
+          const [y,m,d] = ymd.split('-').map(Number);
+          return new Date(y, (m||1)-1, d||1);
+        }
+        function monthDayBR(date){
+          return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+
         titleEl.textContent = ev.title || 'Sem título';
-        const start = ev.startDate || ev.date || ev.start || ev.start_time || ev.datetime || ev.createdAt;
-        dateEl.textContent = formatBRDateTime(start).split(',')[0] || '—';
-        timeEl.textContent = formatBRTime(start) || '—';
+        const startDateStr = ev.date || ev.startDate;
+        const start = startDateStr ? parseLocalYmd(startDateStr) : (ev.createdAt ? new Date(ev.createdAt) : new Date());
+        dateEl.textContent = isNaN(start) ? '—' : monthDayBR(start);
+        timeEl.textContent = ev.time || formatBRTime(start) || '—';
         locEl.textContent = ev.location || ev.place || '—';
         descEl.textContent = ev.description || '—';
         creatorEl.textContent = (ev.creator && (ev.creator.name || ev.creator.email)) || ev.userName || ev.userEmail || '—';

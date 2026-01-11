@@ -1,5 +1,5 @@
 // Service Worker básico para Eventflow (cache offline)
-const VERSION = 'v2';
+const VERSION = 'v3';
 const STATIC_CACHE = `static-${VERSION}`;
 const API_CACHE = `api-${VERSION}`;
 
@@ -48,15 +48,16 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  // Cache-first para arquivos estáticos do projeto
-  const isStatic = STATIC_FILES.some(path => url.pathname === path);
-  if (isStatic) {
+  const accept = event.request.headers.get('accept') || '';
+  // Documentos HTML: network-first para evitar páginas desatualizadas
+  const isDocument = event.request.destination === 'document' || accept.includes('text/html') || url.pathname.endsWith('.html');
+  if (isDocument) {
     event.respondWith(
-      caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
+      fetch(event.request).then(res => {
         const copy = res.clone();
         caches.open(STATIC_CACHE).then(c => c.put(event.request, copy));
         return res;
-      }))
+      }).catch(() => caches.match(event.request))
     );
     return;
   }
