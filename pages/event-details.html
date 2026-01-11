@@ -149,6 +149,19 @@
         try { return window.formatBRTime ? window.formatBRTime(dt) : new Date(dt).toLocaleTimeString('pt-BR'); } catch(e){ return dt; }
       }
 
+      function getLoginUrl(){
+        const inPages = /\/pages\//.test(location.pathname);
+        return inPages ? '../login-firebase.html' : 'login-firebase.html';
+      }
+      function showLoginHint(){
+        const banner = document.getElementById('syncBanner');
+        if (!banner) return;
+        banner.className = 'sync-banner offline';
+        banner.innerHTML = 'Entre para ver dados atualizados do evento. ' +
+          `<a href="${getLoginUrl()}" style="color:#0b5ed7; text-decoration:underline;">Fazer login</a>`;
+        banner.style.display = 'block';
+      }
+
       async function loadEvent(){
         if (!eventId){
           setBanner('offline', 'ID do evento não informado.');
@@ -156,10 +169,12 @@
         }
         // Primeiro tenta do backend (se autenticado)
         try {
-          const data = await api.get(`/events/${eventId}`, { auth: true });
-          if (data && data.title) {
+          const res = await api.get(`/events/${eventId}`, { auth: true });
+          const data = await res.json().catch(()=>({}));
+          if (res.ok && data && (data.id || data._id || data.title)) {
             renderEvent(data);
             localBadge.style.display = 'none';
+            setBanner('', '');
             return;
           }
         } catch(err){ /* segue para fallback */ }
@@ -172,8 +187,10 @@
           renderEvent(ev);
           localBadge.style.display = ev.unsynced ? 'inline-block' : 'none';
           setBanner('offline', 'Exibindo dados locais. Conecte-se para sincronizar.');
+          if (!window.api.token.get()) { showLoginHint(); }
         } else {
           setBanner('offline', 'Evento não encontrado no servidor nem localmente.');
+          if (!window.api.token.get()) { showLoginHint(); }
         }
       }
 
