@@ -26,10 +26,14 @@ connectDB();
 // Middleware
 // CORS configurável por ambiente: use CORS_ORIGIN (lista separada por vírgula) ou '*' por padrão
 const corsOrigins = (process.env.CORS_ORIGIN || '*').split(',').map(s => s.trim()).filter(Boolean);
-app.use(cors({
+const corsConfig = {
     origin: corsOrigins.length === 1 && corsOrigins[0] === '*' ? '*' : corsOrigins,
-    credentials: false
-}));
+    credentials: false,
+    optionsSuccessStatus: 204
+};
+app.use(cors(corsConfig));
+// Garantir resposta ao preflight OPTIONS
+app.options('*', cors(corsConfig));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
