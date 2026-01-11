@@ -112,13 +112,16 @@
 
     // Fila offline básica para mutações de eventos
     var QUEUE_KEY = 'eventflow_offline_queue';
+    var changeHandlers = [];
     function readQueue(){ try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch(_) { return []; } }
-    function writeQueue(q){ try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch(_) {} }
+    function writeQueue(q){ try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch(_) {} try { changeHandlers.forEach(function(h){ h({ pending: q.length, syncing: syncing }); }); } catch(_) {} }
 
+    var syncing = false;
     async function flushQueue(){
       var q = readQueue();
       if (!Array.isArray(q) || q.length === 0) return;
       var next = [];
+      syncing = true; try { changeHandlers.forEach(function(h){ h({ pending: q.length, syncing: syncing }); }); } catch(_) {}
       for (var i=0;i<q.length;i++){
         var item = q[i];
         try {
@@ -137,6 +140,7 @@
         }
       }
       writeQueue(next);
+      syncing = false; try { changeHandlers.forEach(function(h){ h({ pending: next.length, syncing: syncing }); }); } catch(_) {}
     }
 
     window.offlineQueue = {
@@ -146,7 +150,9 @@
         writeQueue(q);
         console.log('[offlineQueue] enfileirado', method, path);
       },
-      flush: flushQueue
+      flush: flushQueue,
+      getQueue: function(){ return readQueue(); },
+      onChange: function(handler){ if (typeof handler === 'function') changeHandlers.push(handler); }
     };
 
     window.addEventListener('online', function(){ flushQueue(); });

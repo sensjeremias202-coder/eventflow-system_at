@@ -727,6 +727,36 @@
 
     <script src="../script.js"></script>
     <script>
+        // Indicador de sincronização offline
+        (function(){
+            try {
+                var indicator = document.createElement('div');
+                indicator.id = 'syncIndicator';
+                indicator.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:3000;background:#fff3cd;color:#664d03;padding:6px 10px;border-bottom:1px solid #ffe69c;font-size:13px;display:none;';
+                indicator.setAttribute('aria-live','polite');
+                indicator.textContent = 'Sincronizando alterações...';
+                document.body.appendChild(indicator);
+
+                function update(ind){
+                    var pending = (ind && typeof ind.pending === 'number') ? ind.pending : ((window.offlineQueue && window.offlineQueue.getQueue().length) || 0);
+                    var syncing = (ind && ind.syncing) || false;
+                    var online = navigator.onLine;
+                    if (pending > 0 || syncing === true || !online){
+                        indicator.style.display = 'block';
+                        indicator.textContent = !online ? ('Offline — '+pending+' alterações pendentes') : (syncing ? ('Sincronizando '+pending+' alteração(ões)...') : (pending>0 ? (pending+' alterações pendentes') : ''));
+                    } else {
+                        indicator.style.display = 'none';
+                    }
+                }
+                update();
+                window.addEventListener('online', function(){ update({ pending: (window.offlineQueue && window.offlineQueue.getQueue().length) || 0, syncing: false }); });
+                window.addEventListener('offline', function(){ update({ pending: (window.offlineQueue && window.offlineQueue.getQueue().length) || 0, syncing: false }); });
+                if (window.offlineQueue && typeof window.offlineQueue.onChange === 'function') {
+                    window.offlineQueue.onChange(update);
+                }
+            } catch(_) {}
+        })();
+
         // Sincroniza EventflowData.events com o backend
         async function syncEventsFromBackend() {
             try {
@@ -847,6 +877,9 @@
                             </div>
                             <button class="register-btn" data-action="register">
                                 Inscrever-se
+                            </button>
+                            <button class="register-btn" data-action="unregister" style="background:#dc3545;">
+                                Cancelar inscrição
                             </button>
                         </div>
                     </div>
@@ -1063,6 +1096,16 @@
                         registerForEvent(eventId);
                     });
                     break;
+                case 'unregister':
+                    ensureEventExistsOnServer(eventId).then(exists => {
+                        if (!exists) {
+                            window.app?.showToast('Evento não encontrado no servidor. Re-sincronizando...', 'warning');
+                            (async ()=>{ await syncEventsFromBackend(); loadEvents(); })();
+                            return;
+                        }
+                        unregisterForEvent(eventId);
+                    });
+                    break;
             }
         }
 
@@ -1172,8 +1215,39 @@
                 window.app?.showToast(`Inscrição confirmada para ${event.title}!`, 'success');
                 loadEvents();
               })
-              .catch(err => window.app?.showToast(err.message || 'Erro na inscrição', 'error'))
+                            .catch(err => {
+                                // Offline: incrementa local e enfileira
+                                event.registered = Math.min((event.registered || 0) + 1, event.capacity || 50);
+                                event.unsynced = true;
+                                try { saveToLocalStorage && saveToLocalStorage(); } catch(_) {}
+                                window.offlineQueue && window.offlineQueue.enqueue('POST', `/events/${eventId}/register`, {}, { auth: true });
+                                window.app?.showToast('Inscrição pendente (offline). Será sincronizada ao voltar a conexão.', 'warning');
+                                loadEvents();
+                            })
         }
+
+                // Cancelar inscrição
+                function unregisterForEvent(eventId) {
+                        const event = EventflowData.events.find(e => e.id == eventId);
+                        if (!event) return;
+                        api.post(`/events/${eventId}/unregister`, {}, { auth: true })
+                            .then(async res => {
+                                const body = await res.json().catch(() => ({}));
+                                if (!res.ok) throw new Error(body.error || 'Falha ao cancelar inscrição');
+                                await syncEventsFromBackend();
+                                window.app?.showToast(`Inscrição cancelada em ${event.title}.`, 'success');
+                                loadEvents();
+                            })
+                            .catch(err => {
+                                // Offline: decrementa local e enfileira
+                                event.registered = Math.max((event.registered || 0) - 1, 0);
+                                event.unsynced = true;
+                                try { saveToLocalStorage && saveToLocalStorage(); } catch(_) {}
+                                window.offlineQueue && window.offlineQueue.enqueue('POST', `/events/${eventId}/unregister`, {}, { auth: true });
+                                window.app?.showToast('Cancelamento pendente (offline). Será sincronizado ao voltar a conexão.', 'warning');
+                                loadEvents();
+                            })
+                }
 
         // Funções auxiliares
         function getCategoryClass(category) {
