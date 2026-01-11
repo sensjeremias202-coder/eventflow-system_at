@@ -792,6 +792,7 @@
                 const category = event.category;
                 const categoryClass = getCategoryClass(category);
                 const statusText = getStatusText(event.status);
+                const localBadge = event.unsynced ? '<span class="badge" title="Somente local" style="margin-left:8px;background:#ffc107;color:#111;padding:2px 6px;border-radius:6px;font-size:12px;">local</span>' : '';
                 
                 return `
                     <div class="event-card" data-event-id="${event.id}">
@@ -803,7 +804,7 @@
                         </div>
                         
                         <div class="event-card-body">
-                            <h3 class="event-card-title">${event.title}</h3>
+                            <h3 class="event-card-title">${event.title} ${localBadge}</h3>
                             <p class="event-card-description">${event.description}</p>
                             
                             <div class="event-card-details">
@@ -929,6 +930,7 @@
                 const category = event.category;
                 const categoryClass = getCategoryClass(category);
                 const statusText = getStatusText(event.status);
+                const localBadge = event.unsynced ? '<span class="badge" title="Somente local" style="margin-left:8px;background:#ffc107;color:#111;padding:2px 6px;border-radius:6px;font-size:12px;">local</span>' : '';
                 
                 return `
                     <div class="event-card" data-event-id="${event.id}">
@@ -940,7 +942,7 @@
                         </div>
                         
                         <div class="event-card-body">
-                            <h3 class="event-card-title">${event.title}</h3>
+                            <h3 class="event-card-title">${event.title} ${localBadge}</h3>
                             <p class="event-card-description">${event.description}</p>
                             
                             <div class="event-card-details">
@@ -1006,8 +1008,12 @@
                 case 'edit':
                     ensureEventExistsOnServer(eventId).then(exists => {
                         if (!exists) {
-                            window.app?.showToast('Evento não encontrado no servidor. Re-sincronizando...', 'warning');
-                            (async ()=>{ await syncEventsFromBackend(); loadEvents(); })();
+                            const confirmRecreate = confirm('Este evento não está no servidor. Deseja recriá-lo agora?');
+                            if (confirmRecreate) {
+                                recreateOnServer(eventId).then(ok => { if (ok) editEvent(eventId); });
+                            } else {
+                                window.app?.showToast('Evento permanece somente local.', 'info');
+                            }
                             return;
                         }
                         editEvent(eventId);
@@ -1018,8 +1024,11 @@
                     if (confirm(`Tem certeza que deseja excluir o evento "${event.title}"?`)) {
                         ensureEventExistsOnServer(eventId).then(exists => {
                             if (!exists) {
-                                window.app?.showToast('Evento não existe no servidor. Re-sincronizando...', 'error');
-                                (async ()=>{ await syncEventsFromBackend(); loadEvents(); })();
+                                // Remover apenas localmente
+                                EventflowData.events = EventflowData.events.filter(e => String(e.id) !== String(eventId));
+                                try { saveToLocalStorage && saveToLocalStorage(); } catch(_) {}
+                                loadEvents();
+                                window.app?.showToast('Evento removido localmente (não existia no servidor).', 'success');
                                 return;
                             }
                             return api.del(`/events/${eventId}`, { auth: true })
@@ -1037,8 +1046,12 @@
                 case 'register':
                     ensureEventExistsOnServer(eventId).then(exists => {
                         if (!exists) {
-                            window.app?.showToast('Evento não encontrado no servidor. Re-sincronizando...', 'warning');
-                            (async ()=>{ await syncEventsFromBackend(); loadEvents(); })();
+                            const confirmRecreate = confirm('Este evento não está no servidor. Deseja recriá-lo agora?');
+                            if (confirmRecreate) {
+                                recreateOnServer(eventId).then(ok => { if (ok) registerForEvent(eventId); });
+                            } else {
+                                window.app?.showToast('A inscrição requer o evento no servidor.', 'info');
+                            }
                             return;
                         }
                         registerForEvent(eventId);
@@ -1050,10 +1063,56 @@
         async function ensureEventExistsOnServer(eventId){
             try {
                 const res = await api.get(`/events/${eventId}`, { auth: true });
-                if (!res.ok) return false;
+                if (!res.ok) {
+                    if (res.status === 404) {
+                        const ev = EventflowData.events.find(e => String(e.id) === String(eventId));
+                        if (ev) { ev.unsynced = true; try { saveToLocalStorage && saveToLocalStorage(); } catch(_) {} }
+                    }
+                    return false;
+                }
                 await res.json().catch(()=>({}));
+                const ev = EventflowData.events.find(e => String(e.id) === String(eventId));
+                if (ev) { ev.unsynced = false; try { saveToLocalStorage && saveToLocalStorage(); } catch(_) {} }
                 return true;
             } catch (e) { return false; }
+        }
+
+        async function recreateOnServer(eventId){
+            const ev = EventflowData.events.find(e => String(e.id) === String(eventId));
+            if (!ev) return false;
+            const payload = {
+                title: ev.title,
+                description: ev.description || '',
+                date: ev.date,
+                time: ev.time,
+                endDate: ev.endDate || ev.date,
+                endTime: ev.endTime || ev.time,
+                location: ev.location || '',
+                address: ev.address || '',
+                category: ev.category || 'Tecnologia',
+                status: ev.status || 'upcoming',
+                capacity: ev.capacity || 50,
+                organizer: ev.organizer || 'Organizador',
+                color: ev.color || '#1976d2'
+            };
+            try {
+                const res = await api.post('/events', payload, { auth: true });
+                const body = await res.json().catch(()=>({}));
+                if (!res.ok) throw new Error(body.error || 'Falha ao recriar no servidor');
+                const newId = body.id || body._id;
+                if (newId) {
+                    ev.id = newId;
+                    ev.unsynced = false;
+                    try { saveToLocalStorage && saveToLocalStorage(); } catch(_) {}
+                    await syncEventsFromBackend();
+                    loadEvents();
+                    window.app?.showToast('Evento recriado no servidor com sucesso!', 'success');
+                    return true;
+                }
+            } catch (err) {
+                window.app?.showToast(err.message || 'Erro ao recriar no servidor', 'error');
+            }
+            return false;
         }
 
         // Mostrar detalhes do evento
