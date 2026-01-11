@@ -49,7 +49,14 @@ app.get('/', (req, res) => {
 
 // Rota de saúde para health check da plataforma
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', uptime: process.uptime() });
+    res.json({
+        status: 'ok',
+        uptime: process.uptime(),
+        db: {
+            connected: typeof connectDB.isConnected === 'function' ? connectDB.isConnected() : false,
+            uriSet: !!process.env.MONGODB_URI
+        }
+    });
 });
 
 // HEAD root para alguns health checks que usam HEAD

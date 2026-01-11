@@ -448,6 +448,12 @@
             background: #f8f9fa;
         }
 
+        /* Banner de sincronização/aviso */
+        .sync-banner { display:none; padding:8px 12px; border-radius:8px; margin:12px 0; }
+        .sync-banner.pending { display:block; background:#fff3cd; color:#664d03; border:1px solid #ffe69c; }
+        .sync-banner.offline { display:block; background:#f8d7da; color:#842029; border:1px solid #f5c2c7; }
+        .sync-banner.memory { display:block; background:#e7f1ff; color:#084298; border:1px solid #b6d4fe; }
+
         .event-actions {
             display: flex;
             gap: 12px;
@@ -638,6 +644,24 @@
             }
         } catch (e) {}
 
+        // Checar saúde do backend e avisar se estiver em modo memória (sem persistência)
+        try {
+            const health = await api.health();
+            const bannerEl = document.getElementById('syncBanner');
+            if (health && health.ok && health.data && health.data.db) {
+                if (!health.data.db.connected) {
+                    bannerEl.className = 'sync-banner memory';
+                    const hasUri = health.data.db.uriSet;
+                    bannerEl.innerHTML = 'Aviso: banco de dados não conectado ' +
+                      (hasUri ? '(URI definida, verifique credenciais/cluster).' : '(MONGODB_URI não configurada).') +
+                      ' Dados podem se perder após atualização. Consulte README_DEPLOY para configurar o MongoDB Atlas.';
+                } else {
+                    bannerEl.className = 'sync-banner';
+                    bannerEl.style.display = 'none';
+                }
+            }
+        } catch (_) {}
+
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
@@ -739,6 +763,8 @@
                     <h1>Gerenciamento de Eventos</h1>
                     <p>Crie, gerencie e acompanhe todos os seus eventos em um só lugar</p>
                 </div>
+                <!-- Avisos de sincronização/persistência -->
+                <div id="syncBanner" class="sync-banner" aria-live="polite"></div>
 
                 <!-- Barra de Ferramentas -->
                 <div class="events-toolbar">
