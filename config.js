@@ -40,7 +40,8 @@
     var host = (typeof location !== 'undefined' ? location.hostname : '');
     var isLocal = /^(localhost|127\.0\.0\.1)$/i.test(String(host));
     // Preferir porta 5100 em ambiente local (compatível com o .env atual)
-    window.API_BASE_URL = isLocal ? 'http://localhost:5100' : 'https://eventflow-system.onrender.com';
+    // Em produção (GitHub Pages), usar o serviço Render: eventflow-backend
+    window.API_BASE_URL = isLocal ? 'http://localhost:5100' : 'https://eventflow-backend.onrender.com';
     console.log('[Config] API via ambiente:', window.API_BASE_URL, 'Host:', host);
     // Injetar favicon padronizado (corrige 404 /favicon.ico no GitHub Pages)
     try {

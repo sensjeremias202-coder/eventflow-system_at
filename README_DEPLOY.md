@@ -19,16 +19,16 @@ Este guia ensina a publicar o backend online usando Render e MongoDB Atlas.
 3. Selecione este repositório (GitHub) e confirme.
 4. A Render lerá `render.yaml` e criará o serviço `eventflow-backend`.
 5. Configure variáveis de ambiente no serviço:
-   - `MONGODB_URI`: string do Atlas
-   - `JWT_SECRET`: um segredo forte
-   - `CORS_ORIGIN`: URLs do frontend separadas por vírgula (ex.: `https://seu-frontend.com,http://127.0.0.1:5500`)
-  - `FRONTEND_BASE_URL`: URL pública do frontend (ex.: `https://sensjeremias202-coder.github.io/eventflow-system_at`)
+  - `MONGODB_URI`: string do Atlas
+  - `JWT_SECRET`: um segredo forte
+  - `CORS_ORIGIN`: URLs do frontend separadas por vírgula (ex.: `https://sensjeremias202-coder.github.io,http://127.0.0.1:5500`)
+  - `FRONTEND_URL` ou `FRONTEND_BASE_URL`: URL pública do frontend (ex.: `https://sensjeremias202-coder.github.io/eventflow-system_at`)
 6. Deployará automaticamente; ao finalizar, você terá uma URL pública, ex.: `https://eventflow-backend.onrender.com`.
 
 ## Passo 3 — Apontar o frontend
 - Defina a URL no `config.js` (antes de `api.js`) ou via `localStorage`:
   ```js
-  window.API_BASE_URL = 'https://eventflow-system-at-2.onrender.com';
+  window.API_BASE_URL = 'https://eventflow-backend.onrender.com';
   // ou
   localStorage.setItem('API_BASE_URL', 'https://eventflow-backend.onrender.com');
   ```

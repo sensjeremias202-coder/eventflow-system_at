@@ -11,10 +11,12 @@ services:
     envVars:
       - key: PORT
         value: 5000
-      # Defina no painel da Render os segredos abaixo
+      # Defina no painel da Render os segredos abaixo (recomendado usar "fromSecret")
       # - key: MONGODB_URI
-      #   value: mongodb+srv://usuario:senha@cluster/eventflow?retryWrites=true&w=majority
+      #   fromSecret: MONGODB_URI
       # - key: JWT_SECRET
-      #   value: um-segredo-forte
+      #   fromSecret: JWT_SECRET
       # - key: CORS_ORIGIN
-      #   value: https://seu-frontend.com
+      #   value: https://sensjeremias202-coder.github.io
+      # - key: FRONTEND_URL
+      #   value: https://sensjeremias202-coder.github.io/eventflow-system_at

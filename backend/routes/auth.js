@@ -248,7 +248,7 @@ router.post('/forgot-password', async (req, res) => {
         const rawToken = user.generatePasswordReset();
         await user.save();
 
-        const frontendUrl = process.env.FRONTEND_URL || 'http://127.0.0.1:5500';
+        const frontendUrl = process.env.FRONTEND_BASE_URL || process.env.FRONTEND_URL || 'http://127.0.0.1:5500';
         const resetLink = `${frontendUrl}/forgot-password.html?token=${rawToken}`;
 
         const html = `
