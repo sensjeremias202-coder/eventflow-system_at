@@ -138,6 +138,10 @@
         return getLocalEvents().find(e => e.id === id || e._id === id);
       }
 
+      function getLastViewedEvent(){
+        try { return JSON.parse(localStorage.getItem('lastViewedEvent') || 'null'); } catch(_) { return null; }
+      }
+
       function formatBRDateTime(dt){
         try { return window.formatBRDateTime ? window.formatBRDateTime(dt) : new Date(dt).toLocaleString('pt-BR'); } catch(e){ return dt; }
       }
@@ -150,21 +154,26 @@
           setBanner('offline', 'ID do evento não informado.');
           return;
         }
-        // Primeiro tenta do backend
+        // Primeiro tenta do backend (se autenticado)
         try {
-          const data = await api.get(`/events/${eventId}`);
-          renderEvent(data);
-          localBadge.style.display = 'none';
-        } catch(err){
-          // Fallback: tentar do local
-          const local = findLocalEvent(eventId);
-          if (local){
-            renderEvent(local);
-            localBadge.style.display = local.unsynced ? 'inline-block' : 'none';
-            setBanner('offline', 'Exibindo dados locais. Conecte-se para sincronizar.');
-          } else {
-            setBanner('offline', 'Evento não encontrado no servidor nem localmente.');
+          const data = await api.get(`/events/${eventId}`, { auth: true });
+          if (data && data.title) {
+            renderEvent(data);
+            localBadge.style.display = 'none';
+            return;
           }
+        } catch(err){ /* segue para fallback */ }
+
+        // Fallback: localStorage (lista) ou último visualizado
+        const local = findLocalEvent(eventId);
+        const last = getLastViewedEvent();
+        const ev = local || (last && (String(last.id||last._id) === String(eventId)) ? last : null);
+        if (ev){
+          renderEvent(ev);
+          localBadge.style.display = ev.unsynced ? 'inline-block' : 'none';
+          setBanner('offline', 'Exibindo dados locais. Conecte-se para sincronizar.');
+        } else {
+          setBanner('offline', 'Evento não encontrado no servidor nem localmente.');
         }
       }
 

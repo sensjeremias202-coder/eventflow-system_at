@@ -1836,6 +1836,10 @@
         // Mostrar detalhes do evento
         function showEventDetails(eventId) {
             if (!eventId) return;
+            try {
+                const ev = (EventflowData && Array.isArray(EventflowData.events)) ? EventflowData.events.find(e => String(e.id) === String(eventId)) : null;
+                if (ev) { localStorage.setItem('lastViewedEvent', JSON.stringify(ev)); }
+            } catch(_){}
             const inPages = /\/pages\//.test(location.pathname);
             const target = inPages ? 'event-details.html' : 'pages/event-details.html';
             window.location.href = `${target}?id=${encodeURIComponent(eventId)}`;
