@@ -139,6 +139,9 @@
           if (msg.includes('HTTP 403')) {
             console.warn('[offlineQueue] descartando item por 403 (sem permissão):', item.path);
             // Não re-enfileira 403 para evitar loops
+          } else if (msg.includes('HTTP 404')) {
+            // Recurso não existe no servidor: descartar para evitar loops
+            console.warn('[offlineQueue] descartando item por 404 (recurso não encontrado):', item.path);
           } else {
             console.warn('[offlineQueue] manter item na fila', item.path, e && e.message);
             next.push(item);
