@@ -321,6 +321,7 @@
         .event-actions {
             display: flex;
             gap: 10px;
+            flex-wrap: wrap;
         }
 
         .action-btn {
@@ -345,12 +346,12 @@
         }
 
         .register-btn {
-            padding: 10px 20px;
+            padding: 6px 12px;
             background: var(--secondary-color);
             color: white;
             border: none;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
             transition: var(--transition);
@@ -882,6 +883,15 @@
                                 <button class="action-btn" title="Excluir" data-action="delete">
                                     <i class="fas fa-trash"></i>
                                 </button>
+                                <button class="action-btn" title="Baixar PNG" data-action="share-png">
+                                    <i class="fas fa-file-image"></i>
+                                </button>
+                                <button class="action-btn" title="Salvar PDF" data-action="share-pdf">
+                                    <i class="fas fa-file-pdf"></i>
+                                </button>
+                                <button class="action-btn" title="WhatsApp" data-action="share-wa">
+                                    <i class="fab fa-whatsapp"></i>
+                                </button>
                             </div>
                             <button class="register-btn" data-action="register">
                                 Inscrever-se
@@ -1006,6 +1016,15 @@
                                 <button class="action-btn" title="Editar" data-action="edit">
                                     <i class="fas fa-edit"></i>
                                 </button>
+                                <button class="action-btn" title="Baixar PNG" data-action="share-png">
+                                    <i class="fas fa-file-image"></i>
+                                </button>
+                                <button class="action-btn" title="Salvar PDF" data-action="share-pdf">
+                                    <i class="fas fa-file-pdf"></i>
+                                </button>
+                                <button class="action-btn" title="WhatsApp" data-action="share-wa">
+                                    <i class="fab fa-whatsapp"></i>
+                                </button>
                             </div>
                             <button class="register-btn" data-action="register">
                                 Inscrever-se
@@ -1114,7 +1133,100 @@
                         unregisterForEvent(eventId);
                     });
                     break;
+                case 'share-png':
+                    (async () => {
+                        try {
+                            const canvas = await createEventBannerCanvas(event);
+                            canvas.toBlob((blob) => {
+                                if (!blob) return;
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `banner-${String(event.title||'evento').replace(/\s+/g,'-').toLowerCase()}.png`;
+                                document.body.appendChild(a); a.click();
+                                setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
+                            }, 'image/png');
+                        } catch (e) { window.app?.showToast('Falha ao gerar PNG', 'error'); }
+                    })();
+                    break;
+                case 'share-pdf':
+                    (async () => {
+                        try {
+                            const canvas = await createEventBannerCanvas(event);
+                            const dataUrl = canvas.toDataURL('image/png');
+                            const w = window.open('', '_blank');
+                            if (!w) { alert('Permita pop-ups para salvar o PDF'); return; }
+                            const html = `<!doctype html><html><head><meta charset="utf-8">
+                              <title>Banner do Evento</title>
+                              <style>@page{size:A4;margin:12mm} img{width:100%; height:auto} body{margin:0; padding:12mm;}</style>
+                            </head><body><img src="${dataUrl}" alt="Banner do Evento" /></body></html>`;
+                            w.document.open(); w.document.write(html); w.document.close();
+                            const img = w.document.querySelector('img');
+                            img.onload = () => { try { w.focus(); w.print(); } catch(_){} };
+                        } catch (e) { window.app?.showToast('Falha ao preparar PDF', 'error'); }
+                    })();
+                    break;
+                case 'share-wa':
+                    (async () => {
+                        try {
+                            const canvas = await createEventBannerCanvas(event);
+                            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+                            const file = blob ? new File([blob], 'banner-evento.png', { type: 'image/png' }) : null;
+                            const text = buildWhatsAppText(event);
+                            if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+                                await navigator.share({ files: [file], text, title: event.title || 'Evento' });
+                            } else {
+                                const waUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
+                                window.open(waUrl, '_blank');
+                                window.app?.showToast('Baixe o PNG e anexe manualmente no WhatsApp (se necessário).', 'info');
+                            }
+                        } catch (e) { window.app?.showToast('Não foi possível compartilhar no WhatsApp', 'error'); }
+                    })();
+                    break;
             }
+        }
+
+        // Geração de banner (PNG)
+        async function createEventBannerCanvas(ev){
+            const title = (ev && ev.title) || 'Evento';
+            const dateText = (ev && ev.date) || '';
+            const timeText = (ev && ev.time) || '';
+            const locText = (ev && (ev.location || ev.address)) || '';
+            const W = 1200, H = 628;
+            const canvas = document.createElement('canvas');
+            canvas.width = W; canvas.height = H;
+            const ctx = canvas.getContext('2d');
+            const grad = ctx.createLinearGradient(0,0,W,H);
+            grad.addColorStop(0, '#1f2937'); grad.addColorStop(1, '#111827');
+            ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+            ctx.globalAlpha = 0.08; ctx.fillStyle = '#ffffff';
+            for (let i=0;i<22;i++){ const r=Math.random()*50+20; const x=Math.random()*W, y=Math.random()*H; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); }
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#93c5fd'; ctx.font = 'bold 40px Inter, Arial, sans-serif'; ctx.fillText('Eventflow', 40, 70);
+            ctx.fillStyle = '#ffffff'; ctx.font = '700 64px Inter, Arial, sans-serif';
+            const maxWidth = W - 80; const lines = wrapText(ctx, String(title).toUpperCase(), maxWidth);
+            let y = 160; lines.slice(0,3).forEach(line => { ctx.fillText(line, 40, y); y += 74; });
+            ctx.fillStyle = '#facc15'; ctx.font = '600 36px Inter, Arial, sans-serif';
+            const dtLine = (dateText && timeText) ? `${dateText} • ${timeText}` : (dateText || timeText || ''); ctx.fillText(dtLine, 40, y + 16);
+            ctx.fillStyle = '#e5e7eb'; ctx.font = '500 32px Inter, Arial, sans-serif'; const locLine = locText ? `Local: ${locText}` : ''; if (locLine) ctx.fillText(locLine, 40, y + 60);
+            ctx.fillStyle = '#9ca3af'; ctx.font = '400 24px Inter, Arial, sans-serif'; ctx.fillText('Crie, compartilhe e participe de eventos.', 40, H - 40);
+            return canvas;
+        }
+
+        function wrapText(ctx, text, maxWidth){
+            const words = String(text).split(/\s+/); const lines = []; let current = '';
+            for (let i=0;i<words.length;i++){ const test = current ? current + ' ' + words[i] : words[i]; if (ctx.measureText(test).width <= maxWidth){ current = test; } else { if (current) lines.push(current); current = words[i]; } }
+            if (current) lines.push(current); return lines;
+        }
+
+        function buildWhatsAppText(ev){
+            const title = (ev && ev.title) || 'Evento';
+            const dateText = (ev && ev.date) || '';
+            const timeText = (ev && ev.time) || '';
+            const locText = (ev && (ev.location || ev.address)) || '';
+            const link = `https://${location.host}${location.pathname.replace(/events\.html$/, 'pages/event-details.html')}?id=${encodeURIComponent(ev.id)}`;
+            const lines = [ `📣 ${title}`, dateText || '', timeText ? `Horário: ${timeText}` : '', locText ? `Local: ${locText}` : '', '', `🔗 Detalhes: ${link}` ].filter(Boolean);
+            return lines.join('\n');
         }
 
         async function ensureEventExistsOnServer(eventId){
