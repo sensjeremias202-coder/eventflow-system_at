@@ -19,7 +19,9 @@
     .container { max-width: 960px; margin: 0 auto; padding: 16px; }
     .header { display:flex; align-items:center; justify-content:space-between; }
     .title { font-size: clamp(1.25rem, 2.5vw, 1.75rem); font-weight: 600; }
-    .actions { display:flex; gap: 8px; }
+    .actions { display:flex; gap: 8px; flex-wrap: wrap; }
+    /* Diminuir tamanho do botão de inscrição para abrir espaço */
+    #registerBtn { font-size: 0.85rem; padding: 4px 8px; }
     .badge { display:inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; background:#ffcc80; color:#7a4b00; margin-left:8px; }
     .meta { margin: 12px 0; color:#555; }
     .meta-item { margin-bottom: 6px; }
