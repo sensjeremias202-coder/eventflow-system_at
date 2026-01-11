@@ -733,24 +733,27 @@
                 const res = await api.get('/events', { auth: true });
                 const json = await res.json();
                 const items = json.items || [];
-                EventflowData.events = items.map(e => ({
-                    id: e.id,
-                    title: e.title,
-                    description: e.description || '',
-                    date: e.date,
-                    time: e.time,
-                    endDate: e.endDate || e.date,
-                    endTime: e.endTime || e.time,
-                    location: e.location || '',
-                    address: e.address || '',
-                    category: e.category || 'Tecnologia',
-                    status: e.status || 'upcoming',
-                    capacity: e.capacity || 50,
-                    registered: e.registered || 0,
-                    organizer: e.organizer || 'Organizador',
-                    color: e.color || '#1976d2',
-                    attendees: e.attendees || []
-                }));
+                if (items.length > 0) {
+                    EventflowData.events = items.map(e => ({
+                        id: e.id,
+                        title: e.title,
+                        description: e.description || '',
+                        date: e.date,
+                        time: e.time,
+                        endDate: e.endDate || e.date,
+                        endTime: e.endTime || e.time,
+                        location: e.location || '',
+                        address: e.address || '',
+                        category: e.category || 'Tecnologia',
+                        status: e.status || 'upcoming',
+                        capacity: e.capacity || 50,
+                        registered: e.registered || 0,
+                        organizer: e.organizer || 'Organizador',
+                        color: e.color || '#1976d2',
+                        attendees: e.attendees || []
+                    }));
+                    try { saveToLocalStorage && saveToLocalStorage(); } catch(_) {}
+                }
             } catch (err) {
                 console.warn('Falha ao sincronizar eventos. Usando dados locais.', err);
             }
