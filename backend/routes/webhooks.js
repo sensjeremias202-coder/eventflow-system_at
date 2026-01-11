@@ -47,4 +47,19 @@ router.post('/banner', async (req, res) => {
   }
 });
 
+// Status de configuração dos webhooks (útil para diagnóstico)
+router.get('/status', async (req, res) => {
+  try {
+    const WEBHOOK = process.env.BANNER_WEBHOOK_URL || process.env.ZAPIER_WEBHOOK_URL || process.env.MAKE_WEBHOOK_URL || '';
+    const FRONTEND = process.env.FRONTEND_BASE_URL || '';
+    res.json({
+      bannerWebhookConfigured: !!WEBHOOK,
+      bannerWebhookUrl: WEBHOOK ? (WEBHOOK.replace(/:[^@]*@/, ':***@')) : '',
+      frontendBaseUrl: FRONTEND,
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Falha ao obter status de webhooks' });
+  }
+});
+
 module.exports = router;
