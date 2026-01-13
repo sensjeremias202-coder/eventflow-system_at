@@ -108,6 +108,17 @@
       var swPath = (projectRoot || '') + '/sw.js';
       navigator.serviceWorker.register(swPath).then(function(reg){
         console.log('[SW] registrado:', swPath);
+        try {
+          // Se houver mudança de controlador (novo SW ativo), recarrega uma única vez
+          var reloaded = sessionStorage.getItem('sw_reloaded_once') === '1';
+          navigator.serviceWorker.addEventListener('controllerchange', function(){
+            if (!reloaded) {
+              sessionStorage.setItem('sw_reloaded_once','1');
+              try { console.log('[SW] controllerchange — recarregando para aplicar nova versão'); } catch(_){ }
+              location.reload();
+            }
+          });
+        } catch(_){}
       }).catch(function(err){ console.warn('[SW] falha ao registrar', err); });
     }
 

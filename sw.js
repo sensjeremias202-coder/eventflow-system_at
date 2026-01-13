@@ -1,5 +1,5 @@
 // Service Worker básico para Eventflow (cache offline)
-const VERSION = 'v3';
+const VERSION = 'v4';
 const STATIC_CACHE = `static-${VERSION}`;
 const API_CACHE = `api-${VERSION}`;
 
