@@ -43,19 +43,27 @@
 
     /* ——— Estilização adaptada ao tema global ——— */
     body.event-details-page { background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); }
-    .back-link { color: var(--primary-color); }
-    .title { color: var(--primary-color); letter-spacing: .2px; font-weight: 700; }
-    .card { background:#fff; border:1px solid var(--border-color); border-radius:16px; padding:20px; box-shadow: var(--shadow-lg); }
+    .back-link { color: var(--primary-color, #2e5051); }
+    .title { color: var(--primary-color, #2e5051); letter-spacing: .2px; font-weight: 700; font-size: clamp(1.5rem, 3vw, 2rem); }
+    .card { background:#fff; border:1px solid var(--border-color, #dee2e6); border-radius:16px; padding:20px; box-shadow: var(--shadow-lg, 0 5px 20px rgba(0,0,0,.15)); }
     .meta { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px 16px; margin-top: 14px; }
     @media (max-width: 640px){ .meta { grid-template-columns: 1fr; } }
-    .meta-item strong { color: var(--primary-color); font-weight: 700; }
-    .actions button { background: var(--primary-color); color:#fff; border:none; border-radius:10px; padding:10px 12px; box-shadow: var(--shadow); cursor:pointer; transition: var(--transition); }
+    .meta-item strong { color: var(--primary-color, #2e5051); font-weight: 700; }
+    .actions button {
+      appearance: none; -webkit-appearance: none;
+      background: var(--primary-color, #2e5051);
+      color:#fff; border:none; border-radius:10px; padding:10px 12px;
+      box-shadow: var(--shadow, 0 2px 15px rgba(0,0,0,.1)); cursor:pointer;
+      transition: var(--transition, all .3s ease);
+      font-size: .9rem;
+    }
     .actions button:hover { transform: translateY(-2px); filter: brightness(1.05); }
-    #deleteBtn { background: var(--accent-color); }
-    #registerBtn { background: var(--secondary-color); }
-    #downloadPNGBtn, #savePDFBtn, #shareWABtn, #editBtn { background: var(--primary-light); }
+    .actions button:focus { outline: 2px solid rgba(37, 99, 235, .35); outline-offset: 2px; }
+    #deleteBtn { background: var(--accent-color, #FF6B6B); }
+    #registerBtn { background: var(--secondary-color, #4CAF50); }
+    #downloadPNGBtn, #savePDFBtn, #shareWABtn, #editBtn { background: var(--primary-light, #3a7c7e); }
     .badge { background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; }
-    .banner-preview img { border:1px solid var(--border-color); }
+    .banner-preview img { border:1px solid var(--border-color, #dee2e6); }
   </style>
 </head>
 <body class="event-details-page">
