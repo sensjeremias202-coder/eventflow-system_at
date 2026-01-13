@@ -830,11 +830,27 @@
                         </div>
                     </div>
                     
-                    <div class="export-actions" style="display:flex; gap:10px; align-items:center;">
+                    <div class="export-actions" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                         <button class="create-event-btn" id="createEventBtn">
                             <i class="fas fa-plus"></i>
                             <span>Criar Evento</span>
                         </button>
+                        <label style="display:flex; align-items:center; gap:6px; font-size:14px; color:#374151; user-select:none;">
+                            <input type="checkbox" id="includeBannersPdf" style="transform: translateY(1px);" />
+                            Incluir banners
+                        </label>
+                        <label style="display:flex; align-items:center; gap:6px; font-size:14px; color:#374151; user-select:none;">
+                            Qualidade do banner
+                            <select id="bannerQualityPdf" class="filter-select" style="height:34px; padding:6px 8px;">
+                                <option value="high">Alta</option>
+                                <option value="medium" selected>Média</option>
+                                <option value="low">Baixa</option>
+                            </select>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:6px; font-size:14px; color:#374151; user-select:none;">
+                            <input type="checkbox" id="pageBreakPerEvent" style="transform: translateY(1px);" />
+                            Quebrar página por evento
+                        </label>
                         <button class="create-event-btn" id="exportAllPdfBtn" style="background:#dc3545;">
                             <i class="fas fa-file-pdf"></i>
                             <span>Baixar PDF (todos)</span>
@@ -1146,6 +1162,13 @@
                     alert('Nenhum evento para exportar.');
                     return;
                 }
+                const includeBanners = !!document.getElementById('includeBannersPdf')?.checked;
+                const pageBreak = !!document.getElementById('pageBreakPerEvent')?.checked;
+                const qKey = document.getElementById('bannerQualityPdf')?.value || 'medium';
+                const qMap = { high: 0.92, medium: 0.8, low: 0.6 };
+                const jpgQuality = qMap[qKey] ?? 0.8;
+                const hMap = { high: 320, medium: 260, low: 200 };
+                const bannerMaxHeightPx = hMap[qKey] ?? 260;
                 function parseLocalYmd(ymd){
                     if (!ymd || typeof ymd !== 'string') return new Date(NaN);
                     const [y,m,d] = ymd.split('-').map(Number);
@@ -1157,20 +1180,32 @@
                     return ad - bd;
                 });
                 const when = new Date().toLocaleString('pt-BR');
-                const sections = events.map(ev => {
+                                const sections = (await Promise.all(events.map(async (ev, idx) => {
                     const date = ev.date || ev.startDate || '';
                     const time = ev.time || ev.startTime || '';
                     const loc  = ev.location || ev.address || ev.place || '';
                     const desc = ev.description || '';
-                    return `
-                    <section class="ev">
+                    let bannerImgHtml = '';
+                    if (includeBanners) {
+                        try {
+                            const opts = getBannerOptionsForEvent(ev.id);
+                            const canvas = await createEventBannerCanvas(ev, opts);
+                                                        const url = canvas.toDataURL('image/jpeg', jpgQuality);
+                            bannerImgHtml = `<img class="banner" src="${url}" alt="Banner do evento" />`;
+                        } catch(_) { /* ignora falha de banner para não quebrar a exportação */ }
+                    }
+                                        const isLast = idx === (events.length - 1);
+                                        const breakClass = pageBreak ? (isLast ? ' ev-break-last' : ' ev-break') : '';
+                                        return `
+                                        <section class="ev${breakClass}">
+                      ${bannerImgHtml}
                       <h2>${(ev.title||'Sem título')}</h2>
                       <div class="line"><strong>Data:</strong> ${date || '—'}</div>
                       <div class="line"><strong>Horário:</strong> ${time || '—'}</div>
                       <div class="line"><strong>Local:</strong> ${loc || '—'}</div>
                       ${desc ? `<p class="desc">${desc}</p>` : ''}
                     </section>`;
-                }).join('');
+                }))).join('');
 
                 const html = `<!doctype html><html><head><meta charset=\"utf-8\" />
                 <title>Eventos - Exportação PDF</title>
@@ -1180,10 +1215,13 @@
                   header { margin-bottom: 10mm; }
                   h1 { margin:0 0 4px 0; font-size: 22px; color:#2e5051; }
                   .meta { color:#6b7280; font-size: 12px; }
-                  .ev { break-inside: avoid; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; margin: 0 0 10px 0; }
+                                    .ev { break-inside: avoid; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; margin: 0 0 10px 0; }
+                                    .ev.ev-break { page-break-after: always; }
+                                    .ev.ev-break-last { page-break-after: auto; }
                   .ev h2 { margin: 0 0 6px 0; font-size: 16px; color:#1f2937; }
                   .line { font-size: 13px; margin: 2px 0; }
                   .desc { font-size: 13px; color:#374151; margin: 6px 0 0 0; }
+                         .banner { width: 100%; max-height: ${bannerMaxHeightPx}px; object-fit: cover; border-radius: 8px; margin: 6px 0 8px 0; border:1px solid #e5e7eb; }
                 </style>
                 </head><body>
                   <header>
