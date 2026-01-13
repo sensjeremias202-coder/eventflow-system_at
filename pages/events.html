@@ -1188,9 +1188,9 @@
                     let bannerImgHtml = '';
                     if (includeBanners) {
                         try {
-                            const opts = getBannerOptionsForEvent(ev.id);
+                            const opts = { ...getBannerOptionsForEvent(ev.id), renderScale: (qKey==='high'?1:(qKey==='medium'?0.85:0.7)) };
                             const canvas = await createEventBannerCanvas(ev, opts);
-                                                        const url = canvas.toDataURL('image/jpeg', jpgQuality);
+                            const url = canvas.toDataURL('image/jpeg', jpgQuality);
                             bannerImgHtml = `<img class="banner" src="${url}" alt="Banner do evento" />`;
                         } catch(_) { /* ignora falha de banner para não quebrar a exportação */ }
                     }
@@ -1770,7 +1770,10 @@
 
             const format = opts.format || 'wide';
             const sizeMap = { wide: { W: 1200, H: 628 }, square: { W: 1080, H: 1080 }, story: { W: 1080, H: 1920 } };
-            const { W, H } = sizeMap[format] || sizeMap.wide;
+            const baseSize = sizeMap[format] || sizeMap.wide;
+            const renderScale = Math.max(0.5, Math.min(1, Number(opts.renderScale || 1)));
+            const W = Math.round(baseSize.W * renderScale);
+            const H = Math.round(baseSize.H * renderScale);
             const canvas = document.createElement('canvas');
             canvas.width = W; canvas.height = H;
             const ctx = canvas.getContext('2d');
