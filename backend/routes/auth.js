@@ -232,6 +232,21 @@ router.post('/google-login', async (req, res) => {
     }
 });
 
+// Configuração pública do Google (debug)
+router.get('/google-config', async (req, res) => {
+    try {
+        const allowed = (process.env.CORS_ORIGIN || '*').split(',').map(s => s.trim()).filter(Boolean);
+        return res.json({
+            clientId: googleClientId || null,
+            hasClientId: !!googleClientId,
+            corsAllowed: allowed,
+            frontendUrl: process.env.FRONTEND_URL || process.env.FRONTEND_BASE_URL || null
+        });
+    } catch (e) {
+        return res.status(500).json({ error: 'Falha ao obter configuração do Google' });
+    }
+});
+
 // Recuperação de senha: solicitar token
 router.post('/forgot-password', async (req, res) => {
     try {
