@@ -40,9 +40,25 @@
     .banner-config input[type="url"] { flex: 1; min-width: 240px; padding:6px 8px; border:1px solid #e5e7eb; border-radius:8px; }
     .banner-config input[type="file"] { padding:6px 0; }
     .banner-config select, .banner-config input[type="color"] { padding:6px 8px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; }
+
+    /* ——— Estilização adaptada ao tema global ——— */
+    body.event-details-page { background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); }
+    .back-link { color: var(--primary-color); }
+    .title { color: var(--primary-color); letter-spacing: .2px; font-weight: 700; }
+    .card { background:#fff; border:1px solid var(--border-color); border-radius:16px; padding:20px; box-shadow: var(--shadow-lg); }
+    .meta { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px 16px; margin-top: 14px; }
+    @media (max-width: 640px){ .meta { grid-template-columns: 1fr; } }
+    .meta-item strong { color: var(--primary-color); font-weight: 700; }
+    .actions button { background: var(--primary-color); color:#fff; border:none; border-radius:10px; padding:10px 12px; box-shadow: var(--shadow); cursor:pointer; transition: var(--transition); }
+    .actions button:hover { transform: translateY(-2px); filter: brightness(1.05); }
+    #deleteBtn { background: var(--accent-color); }
+    #registerBtn { background: var(--secondary-color); }
+    #downloadPNGBtn, #savePDFBtn, #shareWABtn, #editBtn { background: var(--primary-light); }
+    .badge { background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; }
+    .banner-preview img { border:1px solid var(--border-color); }
   </style>
 </head>
-<body>
+<body class="event-details-page">
   <header class="header container">
     <a class="back-link" href="events.html" aria-label="Voltar para eventos">
       <span>←</span>
