@@ -830,10 +830,16 @@
                         </div>
                     </div>
                     
-                    <button class="create-event-btn" id="createEventBtn">
-                        <i class="fas fa-plus"></i>
-                        <span>Criar Evento</span>
-                    </button>
+                    <div class="export-actions" style="display:flex; gap:10px; align-items:center;">
+                        <button class="create-event-btn" id="createEventBtn">
+                            <i class="fas fa-plus"></i>
+                            <span>Criar Evento</span>
+                        </button>
+                        <button class="create-event-btn" id="exportAllPdfBtn" style="background:#dc3545;">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>Baixar PDF (todos)</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Grid de Eventos -->
@@ -1124,6 +1130,76 @@
                     }
                 });
             });
+        }
+
+        // Exportação: gerar um PDF com todos os eventos listados
+        async function downloadAllEventsPDF(){
+            try {
+                if (!EventflowData.events || EventflowData.events.length === 0) {
+                    try { await syncEventsFromBackend(); } catch(_) {}
+                }
+                let events = (EventflowData.events || []).slice();
+                if (!events || events.length === 0) {
+                    try { events = JSON.parse(localStorage.getItem('events')||'[]'); } catch(_) { events = []; }
+                }
+                if (!events || events.length === 0) {
+                    alert('Nenhum evento para exportar.');
+                    return;
+                }
+                function parseLocalYmd(ymd){
+                    if (!ymd || typeof ymd !== 'string') return new Date(NaN);
+                    const [y,m,d] = ymd.split('-').map(Number);
+                    return new Date(y, (m||1)-1, d||1);
+                }
+                events.sort((a,b)=>{
+                    const ad = parseLocalYmd(a.date||a.startDate);
+                    const bd = parseLocalYmd(b.date||b.startDate);
+                    return ad - bd;
+                });
+                const when = new Date().toLocaleString('pt-BR');
+                const sections = events.map(ev => {
+                    const date = ev.date || ev.startDate || '';
+                    const time = ev.time || ev.startTime || '';
+                    const loc  = ev.location || ev.address || ev.place || '';
+                    const desc = ev.description || '';
+                    return `
+                    <section class="ev">
+                      <h2>${(ev.title||'Sem título')}</h2>
+                      <div class="line"><strong>Data:</strong> ${date || '—'}</div>
+                      <div class="line"><strong>Horário:</strong> ${time || '—'}</div>
+                      <div class="line"><strong>Local:</strong> ${loc || '—'}</div>
+                      ${desc ? `<p class="desc">${desc}</p>` : ''}
+                    </section>`;
+                }).join('');
+
+                const html = `<!doctype html><html><head><meta charset=\"utf-8\" />
+                <title>Eventos - Exportação PDF</title>
+                <style>
+                  @page { size: A4; margin: 14mm; }
+                  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#111827; }
+                  header { margin-bottom: 10mm; }
+                  h1 { margin:0 0 4px 0; font-size: 22px; color:#2e5051; }
+                  .meta { color:#6b7280; font-size: 12px; }
+                  .ev { break-inside: avoid; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; margin: 0 0 10px 0; }
+                  .ev h2 { margin: 0 0 6px 0; font-size: 16px; color:#1f2937; }
+                  .line { font-size: 13px; margin: 2px 0; }
+                  .desc { font-size: 13px; color:#374151; margin: 6px 0 0 0; }
+                </style>
+                </head><body>
+                  <header>
+                    <h1>Lista de Eventos</h1>
+                    <div class=\"meta\">Gerado em ${when}</div>
+                  </header>
+                  ${sections}
+                </body></html>`;
+                const w = window.open('', '_blank');
+                if (!w) { alert('Permita pop-ups para baixar o PDF.'); return; }
+                w.document.open(); w.document.write(html); w.document.close();
+                setTimeout(()=>{ try { w.focus(); w.print(); } catch(_){} }, 250);
+            } catch (e) {
+                console.warn('Falha ao gerar PDF de todos os eventos', e);
+                alert('Não foi possível gerar o PDF.');
+            }
         }
 
         // Filtrar eventos
@@ -2104,6 +2180,9 @@
                 // Mostrar modal
                 document.getElementById('createEventModal').classList.add('active');
             });
+
+            // Botão: exportar todos os eventos em PDF
+            document.getElementById('exportAllPdfBtn')?.addEventListener('click', downloadAllEventsPDF);
 
             // Fechar modal
             document.getElementById('modalClose')?.addEventListener('click', () => {
